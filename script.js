@@ -36,6 +36,46 @@ const THEME_CATALOG = [
   }
 ];
 
+const DAILY_EVENTS = [
+  {
+    id: "double-coins",
+    title: "تحدي العملات المضاعفة",
+    detail: "كرات أسرع 15٪ · العملات ×2",
+    icon: "✦",
+    speedMultiplier: 1.15,
+    coinMultiplier: 2,
+    trickChanceBonus: 0,
+    hazardBallMultiplier: 1,
+    powerUpBallMultiplier: 1,
+    regularMatchPointsMultiplier: 1
+  },
+  {
+    id: "hazard-mania",
+    title: "فوضى الكرات الخطرة",
+    detail: "مخاطر أكثر · التفادي والمطابقة العادية ×2 نقاط",
+    icon: "⚠",
+    speedMultiplier: 1,
+    coinMultiplier: 1,
+    trickChanceBonus: 0.10,
+    hazardBallMultiplier: 1.5,
+    powerUpBallMultiplier: 1,
+    regularMatchPointsMultiplier: 2
+  },
+  {
+    id: "power-up-frenzy",
+    title: "هوس القوى الخاصة",
+    detail: "فرصة مضاعفة للقنابل وكرات التجميد",
+    icon: "✹",
+    speedMultiplier: 1,
+    coinMultiplier: 1,
+    trickChanceBonus: 0,
+    hazardBallMultiplier: 1,
+    powerUpBallMultiplier: 2,
+    regularMatchPointsMultiplier: 1
+  }
+];
+let dailyEventRefreshTimer = 0;
+
 const COLORS = THEME_CATALOG[0].colors.map((color) => ({ ...color }));
 let ACTIVE_THEME = THEME_CATALOG[0];
 
@@ -201,6 +241,7 @@ const game = {
   coinsEarned: 0,
   speedBoostActive: false,
   masterModeActive: false,
+  dailyEventId: "double-coins",
 
   difficulty: 1,
   fallSpeed: 160,
@@ -319,7 +360,38 @@ function activeColorCount() {
 
 /** مضاعف النقاط حسب السلسلة (حد أقصى ×5) */
 function comboMultiplier() {
-  return Math.min(5, 1 + Math.floor(game.combo / 5));
+  return Math.min(5, 1 + Math.floor(game.combo / 6));
+}
+
+function getDailyEventForDate(date = new Date()) {
+  const localDay = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+  const index = ((localDay % DAILY_EVENTS.length) + DAILY_EVENTS.length) % DAILY_EVENTS.length;
+  return DAILY_EVENTS[index];
+}
+
+function getRunDailyEvent() {
+  return DAILY_EVENTS.find((event) => event.id === game.dailyEventId) || getDailyEventForDate();
+}
+
+function refreshDailyEventBanner(date = new Date()) {
+  const event = getDailyEventForDate(date);
+  todayEventTitleEl.textContent = event.title;
+  todayEventDetailEl.textContent = event.detail;
+  todayEventIconEl.textContent = event.icon;
+  todayEventBannerEl.dataset.event = event.id;
+  todayEventBannerEl.setAttribute("aria-label", "حدث اليوم: " + event.title + ". " + event.detail);
+  return event;
+}
+
+function scheduleDailyEventRefresh() {
+  if (dailyEventRefreshTimer) clearTimeout(dailyEventRefreshTimer);
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  dailyEventRefreshTimer = setTimeout(() => {
+    dailyEventRefreshTimer = 0;
+    refreshDailyEventBanner();
+    scheduleDailyEventRefresh();
+  }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
 }
 
 /* ============================================================
@@ -452,8 +524,9 @@ function drawConfetti() {
 /** تحديث مستوى الصعوبة تدريجيًا */
 function updateDifficulty() {
   const d = Math.min(8, 1 + game.elapsed / 22 + game.score / 420);
+  const dailySpeedMultiplier = getRunDailyEvent().speedMultiplier;
   game.difficulty    = d;
-  game.fallSpeed     = (140 + d * 27) * GAME_SCALE * (game.speedBoostActive ? 1.15 : 1); // سرعة سقوط متناسبة مع الشاشة
+  game.fallSpeed     = (145 + d * 29) * GAME_SCALE * (game.speedBoostActive ? 1.15 : 1) * dailySpeedMultiplier;
   const spawnRateMultiplier = game.masterModeActive ? 0.78 : 1;
   const minimumSpawnInterval = game.masterModeActive ? 0.22 : 0.30;
   game.spawnInterval = Math.max(minimumSpawnInterval, (0.95 - d * 0.072) * spawnRateMultiplier);
@@ -462,7 +535,9 @@ function updateDifficulty() {
 
 /** تحديد نوع الكرة حسب التقدم واحتمالات المستوى */
 function chooseOrbType(roll) {
-  const trickChance = game.masterModeActive ? 0.30 : game.score > 600 ? 0.15 : 0;
+  const event = getRunDailyEvent();
+  const trickBaseChance = game.masterModeActive ? 0.30 : game.score > 600 ? 0.15 : 0;
+  const trickChance = Math.min(0.55, trickBaseChance + event.trickChanceBonus);
   if (roll < trickChance) return "trick";
 
   let cutoff = trickChance;
@@ -471,9 +546,10 @@ function chooseOrbType(roll) {
     if (roll < cutoff) return "coin";
   }
 
-  cutoff += 0.05;
+  const powerUpChance = 0.05 * event.hazardBallMultiplier * event.powerUpBallMultiplier;
+  cutoff += powerUpChance;
   if (roll < cutoff) return "bomb";
-  cutoff += 0.05;
+  cutoff += powerUpChance;
   if (roll < cutoff) return "freeze";
   return "normal";
 }
@@ -578,9 +654,14 @@ function onCatch(orb) {
     game.maxCombo = Math.max(game.maxCombo, game.combo);
 
     const mult = comboMultiplier();
-    const pts  = 10 * mult * (orb.type === "coin" ? 2 : 1);
+    const basePoints = 10 * mult * (orb.type === "coin" ? 2 : 1);
+    const event = getRunDailyEvent();
+    const dailyPointMultiplier = event.id === "hazard-mania" && orb.type === "normal"
+      ? event.regularMatchPointsMultiplier
+      : 1;
+    const pts = basePoints * dailyPointMultiplier;
     game.score += pts;
-    awardCoins(Math.floor(pts / 10));
+    awardCoins(Math.floor(basePoints / 10));
 
     addFloater(orb.x, orb.y - 8, "+" + pts, orb.type === "coin" ? "#ffd166" : COLORS[orb.color].main);
     if (orb.type === "coin") addFloater(orb.x, orb.y - 26 * GAME_SCALE, "2× BONUS", "#ffd166");
@@ -590,7 +671,7 @@ function onCatch(orb) {
       awardCoins(3);
       const cleared = detonateBomb(orb);
       if (cleared > 0) {
-        const bonus = cleared * 10;
+        const bonus = cleared * 8;
         game.score += bonus;
         awardCoins(Math.floor(bonus / 10));
         addFloater(orb.x, orb.y - 28 * GAME_SCALE, "+" + bonus, "#ffc400");
@@ -657,6 +738,24 @@ function detonateBomb(source) {
   return cleared;
 }
 
+/** مكافأة تفادي كرة الخداع خلال حدث المخاطر فقط */
+function rewardHazardDodge(orb) {
+  if (getRunDailyEvent().id !== "hazard-mania") return;
+
+  const points = 20; // ضعف نقاط المطابقة الأساسية مقابل تفادي الخطر بنجاح.
+  game.score += points;
+  awardCoins(Math.floor(points / 10));
+  addFloater(clamp(orb.x, 28 * GAME_SCALE, W - 28 * GAME_SCALE), H - 36 * GAME_SCALE, "DODGE +" + points, "#ffcf70");
+  updateMilestones();
+
+  if (!game.colorUnlocked && game.score >= 250) {
+    game.colorUnlocked = true;
+    addFloater(W / 2, H * 0.35, "لون جديد!", COLORS[3].main);
+    Sound.unlock();
+  }
+  updateHUD();
+}
+
 /** تحديث كل الكرات الساقطة */
 function updateOrbs(dt) {
   const top    = player.y - player.h / 2;
@@ -682,8 +781,11 @@ function updateOrbs(dt) {
       continue;
     }
 
-    // --- خرجت من أسفل الشاشة ---
-    if (o.y - o.r > H) game.orbs.splice(i, 1);
+    // --- خرجت من أسفل الشاشة؛ تفادي كرة الخداع يكافأ في حدث المخاطر ---
+    if (o.y - o.r > H) {
+      game.orbs.splice(i, 1);
+      if (o.type === "trick") rewardHazardDodge(o);
+    }
   }
 
   game.orbs = game.orbs.filter((orb) => !orb.destroyed);
@@ -999,6 +1101,10 @@ const shopCoinBalanceEl = document.getElementById("shop-coin-balance");
 const startScreen  = document.getElementById("start-screen");
 const overScreen   = document.getElementById("over-screen");
 const shopScreen   = document.getElementById("shop-screen");
+const todayEventBannerEl = document.getElementById("today-event-banner");
+const todayEventTitleEl = document.getElementById("today-event-title");
+const todayEventDetailEl = document.getElementById("today-event-detail");
+const todayEventIconEl = document.getElementById("today-event-icon");
 const shopItemsEl  = document.getElementById("shop-items");
 const shopStatusEl = document.getElementById("shop-status");
 const startBtn     = document.getElementById("start-btn");
@@ -1150,8 +1256,9 @@ function loadShopState() {
 }
 
 function awardCoins(amount) {
-  const reward = Math.max(0, Math.floor(Number(amount) || 0));
-  if (!reward) return;
+  const baseReward = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!baseReward) return;
+  const reward = baseReward * getRunDailyEvent().coinMultiplier;
   playerCoins += reward;
   game.coinsEarned += reward;
   persistShopState();
@@ -1352,6 +1459,7 @@ function startGame() {
   Sound.init();
   Sound.start();
   resetMilestoneBanner();
+  game.dailyEventId = refreshDailyEventBanner().id;
 
   // إعادة ضبط الحالة
   game.state        = "playing";
@@ -1402,6 +1510,7 @@ function startGame() {
 /** العودة إلى شاشة البداية مع مزامنة أعلى نتيجة من التخزين المحلي */
 function returnToHome() {
   loadBest();
+  refreshDailyEventBanner();
   game.state = "start";
   startScreen.classList.remove("hidden");
   overScreen.classList.add("hidden");
@@ -1526,10 +1635,17 @@ if ("serviceWorker" in navigator) {
 loadBest();
 loadShopState();
 loadLeaderboard();
+refreshDailyEventBanner();
+scheduleDailyEventRefresh();
 resize();
 player.x = W / 2;
 bestStartEl.textContent = game.best;
 bestEl.textContent = game.best;
 renderLives();
+
+window.addEventListener("focus", () => refreshDailyEventBanner());
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshDailyEventBanner();
+});
 
 requestAnimationFrame(loop);

@@ -190,6 +190,77 @@ canvas {
   letter-spacing: 0.2px;
 }
 
+#start-screen .daily-event-banner {
+  --daily-event-accent: #ffd166;
+  --daily-event-soft: rgba(255, 209, 102, 0.1);
+  --daily-event-glow: rgba(255, 209, 102, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(340px, 88vw);
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid var(--daily-event-accent);
+  border-radius: 17px;
+  background: linear-gradient(135deg, rgba(13, 20, 43, 0.9), rgba(20, 13, 36, 0.86));
+  box-shadow: 0 0 22px var(--daily-event-glow), inset 0 0 18px var(--daily-event-soft);
+  text-align: right;
+  direction: rtl;
+}
+
+#today-event-banner[data-event="hazard-mania"] {
+  --daily-event-accent: #ff557a;
+  --daily-event-soft: rgba(255, 85, 122, 0.1);
+  --daily-event-glow: rgba(255, 85, 122, 0.18);
+}
+
+#today-event-banner[data-event="power-up-frenzy"] {
+  --daily-event-accent: #00e5ff;
+  --daily-event-soft: rgba(0, 229, 255, 0.1);
+  --daily-event-glow: rgba(0, 229, 255, 0.18);
+}
+
+.daily-event-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  color: var(--daily-event-accent);
+  background: var(--daily-event-soft);
+  font-size: 21px;
+  font-weight: 900;
+  text-shadow: 0 0 13px var(--daily-event-glow);
+}
+
+.daily-event-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.daily-event-label {
+  color: #9aabc9;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+.daily-event-copy strong {
+  color: #f1f4ff;
+  font-size: clamp(13px, 3.7vw, 16px);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.daily-event-copy small {
+  color: #a9b6d2;
+  font-size: clamp(10px, 2.7vw, 12px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 #start-screen .btn {
   min-width: min(250px, 86vw);
   margin: 4px 0 0;

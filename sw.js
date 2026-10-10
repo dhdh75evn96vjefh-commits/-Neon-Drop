@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "neon-match-shell-v5";
+const CACHE_NAME = "neon-match-shell-v6";
 const APP_SHELL = [
   new URL("./", self.registration.scope).href,
   new URL("./index.html", self.registration.scope).href,
