@@ -28,20 +28,15 @@
   </div>
 
   <!-- ===== شاشة البداية ===== -->
-  <div id="start-screen" class="overlay">
+  <div id="start-screen" class="overlay start-screen-overlay">
     <h1 class="title">NEON MATCH</h1>
-    <p class="subtitle">طابِق لونك… وتجنّب الباقي!</p>
-
-    <div class="instructions">
-      <div class="inst"><span class="key">🖱️ / 👆</span> حرّك المؤشر أو اسحب إصبعك للتحرك</div>
-      <div class="inst"><span class="key">← →</span> أو استخدم الأسهم / A D</div>
-      <div class="inst"><span class="dot cyan"></span> التقط الكرات المطابقة للون منصّتك</div>
-      <div class="inst"><span class="dot red"></span> تجنّب الألوان الأخرى — ٣ حيوات فقط!</div>
-      <div class="inst"><span class="key">⏱️</span> لونك يتغيّر مع الوقت… فانتبه!</div>
-    </div>
-
+    <p class="subtitle">جاهز لتحدّي الألوان؟</p>
     <button id="start-btn" class="btn">ابدأ اللعب</button>
-    <p class="best-line">أعلى نتيجة: <span id="best-start">0</span></p>
+    <div class="best-card" aria-label="أعلى نتيجة">
+      <span class="best-card-label">أعلى نتيجة</span>
+      <strong id="best-start">0</strong>
+      <span class="best-card-caption">رقمك القياسي</span>
+    </div>
   </div>
 
   <!-- ===== شاشة نهاية اللعبة ===== -->

@@ -159,52 +159,28 @@ canvas {
   margin-top: -6px;
 }
 
-/* صندوق التعليمات */
-.instructions {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 16px 20px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(120, 160, 255, 0.18);
-  box-shadow: 0 0 30px rgba(0, 120, 255, 0.12) inset;
-  max-width: 420px;
-  width: 100%;
+/* شاشة بداية مبسطة بتركيز بصري على اسم اللعبة وزر اللعب */
+#start-screen.start-screen-overlay {
+  gap: clamp(18px, 3.2vh, 30px);
+  padding: max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 34%, rgba(25, 38, 88, 0.88), rgba(8, 10, 27, 0.94) 58%, rgba(5, 6, 15, 0.98));
 }
 
-.inst {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: clamp(12px, 3.6vw, 15px);
-  color: #c6d4f5;
-  font-weight: 600;
+#start-screen .title {
+  font-size: clamp(42px, 12.5vw, 82px);
+  letter-spacing: clamp(1px, 0.6vw, 4px);
 }
 
-.key {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 52px;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #00e5ff;
-  background: rgba(0, 229, 255, 0.1);
-  border: 1px solid rgba(0, 229, 255, 0.35);
-  flex-shrink: 0;
+#start-screen .subtitle {
+  margin: -10px 0 2px;
+  font-size: clamp(15px, 4.2vw, 19px);
+  letter-spacing: 0.2px;
 }
 
-.dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex-shrink: 0;
+#start-screen .btn {
+  min-width: min(250px, 86vw);
+  margin: 4px 0 0;
 }
-.dot.cyan  { background: #00e5ff; box-shadow: 0 0 12px #00e5ff; }
-.dot.red   { background: #ff2f6d; box-shadow: 0 0 12px #ff2f6d; }
 
 /* الأزرار */
 .btn {
@@ -233,13 +209,43 @@ canvas {
   50%      { background-position: 100% 50%; }
 }
 
-.best-line {
-  font-size: 14px;
-  color: #7f8db3;
-  font-weight: 700;
-  letter-spacing: 1px;
+.best-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: min(250px, 78vw);
+  padding: 14px 24px 12px;
+  border: 1px solid rgba(0, 229, 255, 0.26);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(16, 25, 55, 0.78), rgba(23, 13, 42, 0.72));
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.22), inset 0 0 24px rgba(0, 229, 255, 0.045), 0 0 24px rgba(0, 229, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
-.best-line span { color: #ffc400; font-weight: 900; }
+
+.best-card-label {
+  color: #aab9dc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+#best-start {
+  color: #ffc400;
+  font-size: clamp(32px, 9vw, 42px);
+  font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 0 18px rgba(255, 196, 0, 0.42);
+  font-variant-numeric: tabular-nums;
+}
+
+.best-card-caption {
+  color: #7182aa;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
 
 /* زر العودة للشاشة الرئيسية */
 .btn-secondary {
@@ -326,6 +332,8 @@ canvas {
 /* شاشات صغيرة جدًا */
 @media (max-height: 560px) {
   .overlay { gap: 10px; padding: 14px; }
-  .instructions { padding: 11px 14px; gap: 6px; }
   .btn { padding: 12px 38px; }
+  #start-screen.start-screen-overlay { gap: 10px; padding-top: 18px; padding-bottom: 18px; }
+  #start-screen .title { font-size: clamp(36px, 10vw, 60px); }
+  .best-card { padding: 9px 20px 8px; }
 }
