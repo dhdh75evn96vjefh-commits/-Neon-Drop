@@ -43,9 +43,11 @@ const STORAGE_KEY = "neonMatch_highScore_v1";
 const COIN_STORAGE_KEY = "neonMatch_coins_v1";
 const OWNED_THEMES_STORAGE_KEY = "neonMatch_ownedThemes_v1";
 const EQUIPPED_THEME_STORAGE_KEY = "neonMatch_equippedTheme_v1";
+const LEADERBOARD_STORAGE_KEY = "neonMatch_leaderboard_v1";
 let playerCoins = 0;
 let ownedThemes = new Set(["classic"]);
 let equippedThemeId = "classic";
+let leaderboardEntries = [];
 const ORB_RADIUS = 15;           // نصف قطر الكرة
 const PLAYER_H = 20;             // ارتفاع المنصّة
 const BASE_VIEWPORT_WIDTH = 390;
@@ -250,10 +252,13 @@ canvas.addEventListener("pointerdown", (e) => {
 canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
 window.addEventListener("keydown", (e) => {
-  if (!shopScreen.classList.contains("hidden")) {
+  const shopIsOpen = !shopScreen.classList.contains("hidden");
+  const leaderboardIsOpen = !leaderboardScreen.classList.contains("hidden");
+  if (shopIsOpen || leaderboardIsOpen) {
     if (e.code === "Escape") {
       e.preventDefault();
-      closeShop();
+      if (leaderboardIsOpen) closeLeaderboard();
+      else closeShop();
     }
     return;
   }
@@ -1002,6 +1007,16 @@ const homeBtn      = document.getElementById("home-btn");
 const shareBtn     = document.getElementById("share-btn");
 const shopOpenBtn  = document.getElementById("shop-open-btn");
 const shopCloseBtn = document.getElementById("shop-close-btn");
+const leaderboardOpenBtn = document.getElementById("leaderboard-open-btn");
+const leaderboardScreen = document.getElementById("leaderboard-screen");
+const leaderboardListEl = document.getElementById("leaderboard-list");
+const leaderboardCloseBtn = document.getElementById("leaderboard-close-btn");
+const leaderboardEntryEl = document.getElementById("leaderboard-entry");
+const nicknameInputEl = document.getElementById("nickname-input");
+const leaderboardSaveBtn = document.getElementById("leaderboard-save-btn");
+const nicknameHelpEl = document.getElementById("nickname-help");
+const nicknameEntryStatusEl = document.getElementById("nickname-entry-status");
+const leaderboardSavedEl = document.getElementById("leaderboard-saved");
 const milestoneBannerEl = document.getElementById("milestone-banner");
 let milestoneBannerQueue = [];
 let milestoneBannerTimer = 0;
@@ -1203,6 +1218,135 @@ function closeShop() {
   shopOpenBtn.focus();
 }
 
+/** قبول اسم مستعار آمن فقط؛ لا بريد أو روابط أو معرّفات رقمية خالصة */
+function sanitizeNickname(value) {
+  const normalized = String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || /[@.]/.test(normalized) || /https?:/i.test(normalized)) return "";
+
+  const safe = Array.from(normalized)
+    .filter((character) => /[\p{L}\p{N} _-]/u.test(character))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  const limited = Array.from(safe).slice(0, 20).join("").trim();
+  return /\p{L}/u.test(limited) ? limited : "";
+}
+
+function sortLeaderboard(entries) {
+  return entries
+    .map((entry, order) => {
+      const nickname = sanitizeNickname(entry && entry.nickname);
+      const score = Math.floor(Number(entry && entry.score));
+      return nickname && Number.isFinite(score) && score > 0
+        ? { nickname, score, order }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 5)
+    .map(({ nickname, score }) => ({ nickname, score }));
+}
+
+function loadLeaderboard() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || "[]");
+    leaderboardEntries = Array.isArray(saved) ? sortLeaderboard(saved) : [];
+  } catch (error) {
+    leaderboardEntries = [];
+  }
+}
+
+function persistLeaderboard(entries) {
+  try {
+    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function leaderboardQualifies(score) {
+  return score > 0 && (leaderboardEntries.length < 5 || score >= leaderboardEntries[4].score);
+}
+
+function renderLeaderboard() {
+  leaderboardListEl.replaceChildren();
+  if (!leaderboardEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "leaderboard-empty";
+    empty.textContent = "لا توجد نتائج بعد. ابدأ اللعب لتسجيل أول نتيجة.";
+    leaderboardListEl.appendChild(empty);
+    return;
+  }
+
+  leaderboardEntries.forEach((entry, index) => {
+    const row = document.createElement("div");
+    row.className = "leaderboard-row" + (index === 0 ? " is-first" : "");
+    row.setAttribute("role", "listitem");
+
+    const rank = document.createElement("span");
+    rank.className = "leaderboard-rank";
+    rank.textContent = String(index + 1).padStart(2, "0");
+
+    const nickname = document.createElement("span");
+    nickname.className = "leaderboard-name";
+    nickname.textContent = entry.nickname;
+
+    const score = document.createElement("strong");
+    score.className = "leaderboard-score";
+    score.textContent = String(entry.score);
+
+    row.append(rank, nickname, score);
+    leaderboardListEl.appendChild(row);
+  });
+}
+
+function openLeaderboard() {
+  loadLeaderboard();
+  renderLeaderboard();
+  leaderboardScreen.classList.remove("hidden");
+  leaderboardScreen.setAttribute("aria-hidden", "false");
+  leaderboardCloseBtn.focus();
+}
+
+function closeLeaderboard() {
+  leaderboardScreen.classList.add("hidden");
+  leaderboardScreen.setAttribute("aria-hidden", "true");
+  leaderboardOpenBtn.focus();
+}
+
+function saveLeaderboardEntry() {
+  const nickname = sanitizeNickname(nicknameInputEl.value);
+  const score = Math.floor(Number(game.score) || 0);
+  if (!nickname) {
+    nicknameEntryStatusEl.textContent = "أدخل اسمًا مستعارًا من حروف، ويمكن إضافة أرقام أو مسافات.";
+    nicknameInputEl.focus();
+    return;
+  }
+  if (!leaderboardQualifies(score)) {
+    leaderboardEntryEl.classList.add("hidden");
+    leaderboardSavedEl.classList.add("hidden");
+    return;
+  }
+
+  // إضافة النتيجة الجديدة أولًا تجعلها تكسر التعادل، مع الاحتفاظ بخمسة سجلات فقط.
+  const updated = sortLeaderboard([{ nickname, score }, ...leaderboardEntries]);
+  if (!persistLeaderboard(updated)) {
+    nicknameEntryStatusEl.textContent = "تعذّر الحفظ على هذا الجهاز. تحقق من مساحة التخزين ثم حاول مجددًا.";
+    return;
+  }
+
+  leaderboardEntries = updated;
+  renderLeaderboard();
+  nicknameInputEl.value = "";
+  leaderboardEntryEl.classList.add("hidden");
+  leaderboardSavedEl.classList.remove("hidden");
+}
+
 /** بدء / إعادة اللعبة */
 function startGame() {
   Sound.init();
@@ -1246,6 +1390,10 @@ function startGame() {
   startScreen.classList.add("hidden");
   overScreen.classList.add("hidden");
   newRecordEl.classList.add("hidden");
+  leaderboardEntryEl.classList.add("hidden");
+  leaderboardSavedEl.classList.add("hidden");
+  nicknameInputEl.value = "";
+  nicknameEntryStatusEl.textContent = "";
 
   updateHUD();
   updateCoinDisplays();
@@ -1310,6 +1458,12 @@ function endGame() {
   coinsEarnedEl.textContent = game.coinsEarned;
   coinBalanceOverEl.textContent = playerCoins;
 
+  loadLeaderboard();
+  nicknameInputEl.value = "";
+  nicknameEntryStatusEl.textContent = "";
+  leaderboardSavedEl.classList.add("hidden");
+  leaderboardEntryEl.classList.toggle("hidden", !leaderboardQualifies(game.score));
+
   if (isNewRecord) newRecordEl.classList.remove("hidden");
 
   updateHUD();
@@ -1329,6 +1483,23 @@ homeBtn.addEventListener("click", returnToHome);
 shareBtn.addEventListener("click", shareScore);
 shopOpenBtn.addEventListener("click", openShop);
 shopCloseBtn.addEventListener("click", closeShop);
+leaderboardOpenBtn.addEventListener("click", openLeaderboard);
+leaderboardCloseBtn.addEventListener("click", closeLeaderboard);
+leaderboardSaveBtn.addEventListener("click", saveLeaderboardEntry);
+leaderboardScreen.addEventListener("click", (event) => {
+  if (event.target === leaderboardScreen) closeLeaderboard();
+});
+nicknameInputEl.addEventListener("input", () => {
+  const raw = nicknameInputEl.value;
+  const sanitized = sanitizeNickname(raw);
+  const containsPrivateMarker = /[@.]|https?:/i.test(raw);
+  nicknameInputEl.value = sanitized;
+  nicknameEntryStatusEl.textContent = containsPrivateMarker
+    ? "استخدم اسمًا مستعارًا فقط؛ لا يمكن إدخال بريد أو رابط."
+    : raw && !sanitized
+      ? "استخدم اسمًا مستعارًا يحتوي على حرف واحد على الأقل."
+      : "";
+});
 shopScreen.addEventListener("click", (event) => {
   if (event.target === shopScreen) closeShop();
 });
@@ -1338,9 +1509,10 @@ shopItemsEl.addEventListener("click", (event) => {
 });
 
 // منع تمرير الصفحة عند اللمس على الأزرار
-[startBtn, restartBtn, homeBtn, shareBtn, shopOpenBtn, shopCloseBtn].forEach(btn => {
+[startBtn, restartBtn, homeBtn, shareBtn, shopOpenBtn, shopCloseBtn, leaderboardOpenBtn, leaderboardCloseBtn, leaderboardSaveBtn].forEach(btn => {
   btn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
 });
+nicknameInputEl.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
 
 // تسجيل عامل الخدمة لدعم التخزين المؤقت والعمل دون اتصال على HTTPS أو localhost.
 if ("serviceWorker" in navigator) {
@@ -1353,6 +1525,7 @@ if ("serviceWorker" in navigator) {
 // تهيئة أولية
 loadBest();
 loadShopState();
+loadLeaderboard();
 resize();
 player.x = W / 2;
 bestStartEl.textContent = game.best;

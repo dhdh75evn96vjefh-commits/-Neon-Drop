@@ -48,6 +48,7 @@
       <strong id="best-start">0</strong>
       <span class="best-card-caption">رقمك القياسي</span>
     </div>
+    <button id="leaderboard-open-btn" class="leaderboard-open-btn" type="button">لوحة المتصدرين</button>
   </div>
 
   <!-- ===== شاشة نهاية اللعبة ===== -->
@@ -64,6 +65,16 @@
       <div><span>عملات الجولة</span><strong id="coins-earned">0</strong></div>
       <div><span>الرصيد الكلي</span><strong id="coin-balance-over">0</strong></div>
     </div>
+
+    <div id="leaderboard-entry" class="leaderboard-entry hidden">
+      <h3>نتيجتك ضمن أفضل 5!</h3>
+      <label for="nickname-input">اختر اسمًا مستعارًا</label>
+      <input id="nickname-input" type="text" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-describedby="nickname-help" placeholder="مثال: لاعب النيون">
+      <p id="nickname-help" class="nickname-help">اسم مستعار فقط، دون بريد أو بيانات شخصية. تُحفظ النتيجة على هذا الجهاز.</p>
+      <button id="leaderboard-save-btn" class="leaderboard-save-btn" type="button">حفظ النتيجة</button>
+      <p id="nickname-entry-status" class="nickname-entry-status" aria-live="polite"></p>
+    </div>
+    <p id="leaderboard-saved" class="leaderboard-saved hidden" aria-live="polite">حُفظت نتيجتك على هذا الجهاز.</p>
 
     <p id="new-record" class="new-record hidden">🎉 رقم قياسي جديد! 🎉</p>
 
@@ -87,6 +98,18 @@
     <p id="shop-status" class="shop-status" aria-live="polite"></p>
     <div id="shop-items" class="shop-items"></div>
     <button id="shop-close-btn" class="btn btn-secondary shop-close-btn" type="button">العودة</button>
+  </div>
+
+  <div id="leaderboard-screen" class="overlay board-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboard-title" aria-hidden="true">
+    <div class="leaderboard-header">
+      <div>
+        <h2 id="leaderboard-title">المتصدرون المحليون</h2>
+        <p>أفضل 5 نتائج محفوظة على هذا الجهاز فقط</p>
+      </div>
+      <span class="local-only-badge">محلي فقط</span>
+    </div>
+    <div id="leaderboard-list" class="leaderboard-list" role="list" aria-label="أفضل خمس نتائج"></div>
+    <button id="leaderboard-close-btn" class="btn btn-secondary leaderboard-close-btn" type="button">العودة</button>
   </div>
 </div>
 
