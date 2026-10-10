@@ -1,0 +1,331 @@
+/* ============================================================
+   الأساسيات وإعادة الضبط
+   ============================================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05060f;
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: #eaf2ff;
+}
+
+#game-wrap {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;   /* منع التمرير/التكبير أثناء اللعب على الجوال */
+  cursor: crosshair;
+}
+
+/* ============================================================
+   واجهة المعلومات العلوية (HUD)
+   ============================================================ */
+#hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 18px;
+  pointer-events: none;
+  direction: ltr;           /* لضبط توزيع العناصر بدقة */
+  z-index: 5;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.45);
+}
+
+.hud-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #7f8db3;
+  font-weight: 700;
+}
+
+.hud-value {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.hud-value.small { font-size: 20px; color: #9fb2dd; }
+
+.hud-right { text-align: right; }
+
+#combo {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 20px;
+  color: #05060f;
+  background: linear-gradient(90deg, #ffc400, #ff2fd0);
+  box-shadow: 0 0 16px rgba(255, 196, 0, 0.6);
+  transition: transform .15s ease;
+}
+
+#combo.hidden { opacity: 0; transform: scale(0.7); }
+
+/* نقاط الحياة */
+.lives {
+  display: flex;
+  gap: 7px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.life {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff2f6d;
+  box-shadow: 0 0 12px #ff2f6d, 0 0 4px #fff inset;
+  transition: all .25s ease;
+}
+
+.life.off {
+  background: #232a42;
+  box-shadow: none;
+  transform: scale(0.75);
+}
+
+/* ============================================================
+   الشاشات المتراكبة (البداية / النهاية)
+   ============================================================ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 26px;
+  text-align: center;
+  z-index: 10;
+  background: radial-gradient(circle at 50% 40%, rgba(24, 30, 72, 0.72), rgba(5, 6, 15, 0.93));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity .35s ease, visibility .35s ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* العنوان الرئيسي */
+.title {
+  font-size: clamp(40px, 12vw, 78px);
+  font-weight: 900;
+  letter-spacing: 3px;
+  line-height: 1;
+  background: linear-gradient(100deg, #00e5ff, #7c3aed 45%, #ff2fd0 75%, #ffc400);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(0, 229, 255, 0.55));
+  animation: titleFlow 5s ease infinite;
+}
+
+@keyframes titleFlow {
+  0%, 100% { background-position: 0% center; }
+  50%      { background-position: 100% center; }
+}
+
+.subtitle {
+  font-size: clamp(14px, 4vw, 18px);
+  color: #9fb2dd;
+  font-weight: 600;
+  margin-top: -6px;
+}
+
+/* صندوق التعليمات */
+.instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(120, 160, 255, 0.18);
+  box-shadow: 0 0 30px rgba(0, 120, 255, 0.12) inset;
+  max-width: 420px;
+  width: 100%;
+}
+
+.inst {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(12px, 3.6vw, 15px);
+  color: #c6d4f5;
+  font-weight: 600;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot.cyan  { background: #00e5ff; box-shadow: 0 0 12px #00e5ff; }
+.dot.red   { background: #ff2f6d; box-shadow: 0 0 12px #ff2f6d; }
+
+/* الأزرار */
+.btn {
+  margin-top: 6px;
+  padding: 16px 52px;
+  font-family: inherit;
+  font-size: clamp(17px, 4.5vw, 21px);
+  font-weight: 900;
+  letter-spacing: 1px;
+  border: none;
+  border-radius: 60px;
+  cursor: pointer;
+  color: #05060f;
+  background: linear-gradient(135deg, #00e5ff, #7c3aed 50%, #ff2fd0);
+  background-size: 220% 220%;
+  box-shadow: 0 0 26px rgba(0, 229, 255, 0.5), 0 0 55px rgba(255, 47, 208, 0.3);
+  animation: btnFlow 3.5s ease infinite;
+  transition: transform .15s ease, box-shadow .3s ease;
+}
+
+.btn:hover  { transform: translateY(-3px) scale(1.04); box-shadow: 0 0 36px rgba(0,229,255,.8), 0 0 70px rgba(255,47,208,.5); }
+.btn:active { transform: scale(0.96); }
+
+@keyframes btnFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.best-line {
+  font-size: 14px;
+  color: #7f8db3;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.best-line span { color: #ffc400; font-weight: 900; }
+
+/* زر العودة للشاشة الرئيسية */
+.btn-secondary {
+  margin-top: 0;
+  padding: 12px 38px;
+  font-size: clamp(15px, 4vw, 18px);
+  color: #dce8ff;
+  background: linear-gradient(135deg, rgba(13, 24, 52, 0.96), rgba(42, 20, 67, 0.96));
+  border: 1px solid rgba(0, 229, 255, 0.48);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(124, 58, 237, 0.12);
+  animation: none;
+}
+
+.btn-secondary:hover {
+  color: #fff;
+  border-color: #00e5ff;
+  box-shadow: 0 0 26px rgba(0, 229, 255, 0.38);
+}
+
+/* شاشة النهاية */
+.go-title {
+  font-size: clamp(30px, 9vw, 52px);
+  font-weight: 900;
+  color: #ff2f6d;
+  text-shadow: 0 0 26px rgba(255, 47, 109, 0.8);
+  letter-spacing: 2px;
+  animation: goPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes goPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+.score-box {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 460px;
+}
+
+.score-item {
+  flex: 1 1 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(120, 160, 255, 0.18);
+}
+
+.score-item span {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #7f8db3;
+  font-weight: 700;
+}
+
+.score-item strong {
+  font-size: clamp(22px, 6vw, 30px);
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 16px rgba(0, 229, 255, 0.7);
+}
+
+.new-record {
+  font-size: clamp(15px, 4.4vw, 20px);
+  font-weight: 900;
+  color: #ffc400;
+  text-shadow: 0 0 20px rgba(255, 196, 0, 0.9);
+  animation: recordPop .8s ease infinite alternate;
+}
+
+.new-record.hidden { display: none; }
+
+@keyframes recordPop {
+  from { transform: scale(1); }
+  to   { transform: scale(1.09); }
+}
+
+/* شاشات صغيرة جدًا */
+@media (max-height: 560px) {
+  .overlay { gap: 10px; padding: 14px; }
+  .instructions { padding: 11px 14px; gap: 6px; }
+  .btn { padding: 12px 38px; }
+}
