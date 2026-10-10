@@ -13,6 +13,10 @@ const COLORS = [
 const STORAGE_KEY = "neonMatch_highScore_v1";
 const ORB_RADIUS = 15;           // نصف قطر الكرة
 const PLAYER_H = 20;             // ارتفاع المنصّة
+const BASE_VIEWPORT_WIDTH = 390;
+const BASE_VIEWPORT_HEIGHT = 700;
+const MIN_GAME_SCALE = 0.72;
+const MAX_GAME_SCALE = 1.35;
 
 /* ============================================================
    2) إعداد اللوحة القماشية
@@ -21,17 +25,25 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let W = 0, H = 0, DPR = 1;
+let GAME_SCALE = 1;
 let bgGrad = null;
 
 function resize() {
+  const previousWidth = W || window.innerWidth;
+  const previousScale = GAME_SCALE;
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth;
-  H = window.innerHeight;
+  W = Math.max(1, Math.round(window.innerWidth));
+  H = Math.max(1, Math.round(window.innerHeight));
+  GAME_SCALE = clamp(
+    Math.min(W / BASE_VIEWPORT_WIDTH, H / BASE_VIEWPORT_HEIGHT),
+    MIN_GAME_SCALE,
+    MAX_GAME_SCALE
+  );
 
   canvas.width  = Math.floor(W * DPR);
   canvas.height = Math.floor(H * DPR);
-  canvas.style.width  = W + "px";
-  canvas.style.height = H + "px";
+  canvas.style.width  = "100%";
+  canvas.style.height = "100%";
 
   // ضبط التحويل الأساسي ليدعم الشاشات عالية الدقة
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -43,12 +55,21 @@ function resize() {
   bgGrad.addColorStop(1,    "#150b28");
 
   // إعادة ضبط موضع وحجم اللاعب
-  player.w = Math.min(130, Math.max(82, W * 0.24));
-  player.y = H - Math.max(78, H * 0.13);
-  player.x = Math.min(Math.max(player.w / 2, player.x), W - player.w / 2);
+  player.w = clamp(W * 0.24, 82 * GAME_SCALE, 130 * GAME_SCALE);
+  player.h = PLAYER_H * GAME_SCALE;
+  player.speed = 760 * GAME_SCALE;
+  player.y = H - Math.max(78 * GAME_SCALE, H * 0.13);
+  player.x = clamp(player.x * (W / previousWidth), player.w / 2, W - player.w / 2);
+
+  for (const orb of game.orbs) {
+    orb.r = ORB_RADIUS * GAME_SCALE;
+    orb.x = clamp(orb.x * (W / previousWidth), orb.r, W - orb.r);
+    orb.vy *= GAME_SCALE / previousScale;
+  }
 }
 
-window.addEventListener("resize", resize);
+window.addEventListener("resize", resize, { passive: true });
+window.visualViewport?.addEventListener("resize", resize, { passive: true });
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));
 
 /* ============================================================
@@ -139,6 +160,7 @@ const game = {
   combo: 0,
   maxCombo: 0,
   elapsed: 0,            // الزمن الفعلي للعب (ثواني)
+  freezeTimer: 0,
 
   difficulty: 1,
   fallSpeed: 160,
@@ -222,6 +244,11 @@ window.addEventListener("keyup", (e) => {
 const rand  = (min, max) => min + Math.random() * (max - min);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+function vibrate(pattern) {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  try { navigator.vibrate(pattern); } catch (e) { /* الاهتزاز غير مدعوم أو محظور */ }
+}
+
 /** رسم مستطيل بزوايا دائرية (بديل متوافق مع كل المتصفحات) */
 function roundRect(x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
@@ -249,16 +276,17 @@ function comboMultiplier() {
    ============================================================ */
 function burst(x, y, colorIndex, count, speed) {
   const c = COLORS[colorIndex];
+  const scaledSpeed = speed * GAME_SCALE;
   for (let i = 0; i < count; i++) {
     const ang = Math.random() * Math.PI * 2;
-    const sp  = rand(speed * 0.25, speed);
+    const sp  = rand(scaledSpeed * 0.25, scaledSpeed);
     game.particles.push({
       x, y,
       vx: Math.cos(ang) * sp,
-      vy: Math.sin(ang) * sp - 40,
+      vy: Math.sin(ang) * sp - 40 * GAME_SCALE,
       life: rand(0.35, 0.8),
       maxLife: 0.8,
-      size: rand(2, 5),
+      size: rand(2, 5) * GAME_SCALE,
       color: Math.random() < 0.25 ? "#ffffff" : c.main
     });
   }
@@ -269,7 +297,7 @@ function updateParticles(dt) {
     const p = game.particles[i];
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vy += 620 * dt;      // جاذبية
+    p.vy += 620 * GAME_SCALE * dt;      // جاذبية متناسبة مع أبعاد الشاشة
     p.vx *= 0.97;          // مقاومة هواء
     p.life -= dt;
     if (p.life <= 0) game.particles.splice(i, 1);
@@ -282,7 +310,7 @@ function drawParticles() {
     ctx.globalAlpha = a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 12 * GAME_SCALE;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
     ctx.fill();
@@ -298,7 +326,7 @@ function addFloater(x, y, text, color) {
 function updateFloaters(dt) {
   for (let i = game.floaters.length - 1; i >= 0; i--) {
     const f = game.floaters[i];
-    f.y -= 58 * dt;
+    f.y -= 58 * GAME_SCALE * dt;
     f.life -= dt;
     if (f.life <= 0) game.floaters.splice(i, 1);
   }
@@ -310,7 +338,7 @@ function drawFloaters() {
   for (const f of game.floaters) {
     const a = clamp(f.life / f.maxLife, 0, 1);
     ctx.globalAlpha = a;
-    ctx.font = "900 19px 'Segoe UI', system-ui, sans-serif";
+    ctx.font = "900 " + (19 * GAME_SCALE) + "px 'Segoe UI', system-ui, sans-serif";
     ctx.fillStyle = f.color;
     ctx.shadowColor = f.color;
     ctx.shadowBlur = 16;
@@ -325,11 +353,11 @@ function spawnConfetti(count) {
   for (let i = 0; i < count; i++) {
     confetti.push({
       x: rand(0, W),
-      y: rand(-H * 0.6, -20),
-      vx: rand(-70, 70),
-      vy: rand(90, 260),
-      w: rand(6, 13),
-      h: rand(9, 17),
+      y: rand(-H * 0.6, -20 * GAME_SCALE),
+      vx: rand(-70, 70) * GAME_SCALE,
+      vy: rand(90, 260) * GAME_SCALE,
+      w: rand(6, 13) * GAME_SCALE,
+      h: rand(9, 17) * GAME_SCALE,
       rot: rand(0, Math.PI * 2),
       vr: rand(-8, 8),
       color: COLORS[Math.floor(Math.random() * COLORS.length)].main,
@@ -346,7 +374,7 @@ function updateConfetti(dt) {
     c.rot += c.vr * dt;
     c.vx *= 0.995;
     c.life -= dt;
-    if (c.life <= 0 || c.y > H + 60) confetti.splice(i, 1);
+    if (c.life <= 0 || c.y > H + 60 * GAME_SCALE) confetti.splice(i, 1);
   }
 }
 
@@ -358,7 +386,7 @@ function drawConfetti() {
     ctx.rotate(c.rot);
     ctx.fillStyle = c.color;
     ctx.shadowColor = c.color;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 10 * GAME_SCALE;
     ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
     ctx.restore();
   }
@@ -374,7 +402,7 @@ function drawConfetti() {
 function updateDifficulty() {
   const d = Math.min(8, 1 + game.elapsed / 22 + game.score / 420);
   game.difficulty    = d;
-  game.fallSpeed     = 140 + d * 27;                       // سرعة سقوط الكرات
+  game.fallSpeed     = (140 + d * 27) * GAME_SCALE;        // سرعة سقوط متناسبة مع الشاشة
   game.spawnInterval = Math.max(0.30, 0.95 - d * 0.072);   // معدّل التوليد
   game.colorDuration = Math.max(3.2, 8.5 - d * 0.66);      // مدة ثبات اللون
 }
@@ -383,6 +411,8 @@ function updateDifficulty() {
 function spawnOrb() {
   const n = activeColorCount();
   let colorIdx;
+  const roll = Math.random();
+  const type = roll < 0.05 ? "bomb" : roll < 0.10 ? "freeze" : "normal";
 
   if (Math.random() < 0.42) {
     // ترجيح: 42% من الكرات تحمل لون المنصّة الحالي
@@ -393,13 +423,15 @@ function spawnOrb() {
     colorIdx = others[Math.floor(Math.random() * others.length)];
   }
 
-  const margin = ORB_RADIUS + 14;
+  const orbRadius = ORB_RADIUS * GAME_SCALE;
+  const margin = orbRadius + 14 * GAME_SCALE;
   game.orbs.push({
     x: rand(margin, W - margin),
-    y: -ORB_RADIUS * 2,
-    r: ORB_RADIUS,
+    y: -orbRadius * 2,
+    r: orbRadius,
     vy: game.fallSpeed * rand(0.85, 1.2),
     color: colorIdx,
+    type,
     wob: rand(0, Math.PI * 2)
   });
 }
@@ -446,6 +478,7 @@ function onCatch(orb) {
   const isMatch = orb.color === game.targetColor;
 
   if (isMatch) {
+    vibrate([30]);
     game.combo++;
     game.maxCombo = Math.max(game.maxCombo, game.combo);
 
@@ -454,7 +487,20 @@ function onCatch(orb) {
     game.score += pts;
 
     addFloater(orb.x, orb.y - 8, "+" + pts, COLORS[orb.color].main);
-    burst(orb.x, orb.y, orb.color, 14, 230);
+    burst(orb.x, orb.y, orb.color, 26, 280);
+
+    if (orb.type === "bomb") {
+      const cleared = detonateBomb(orb);
+      if (cleared > 0) {
+        const bonus = cleared * 10;
+        game.score += bonus;
+        addFloater(orb.x, orb.y - 28 * GAME_SCALE, "+" + bonus, "#ffc400");
+      }
+    } else if (orb.type === "freeze") {
+      game.freezeTimer = 5;
+      burst(orb.x, orb.y, orb.color, 34, 240);
+      addFloater(orb.x, orb.y - 26 * GAME_SCALE, "تباطؤ 5 ثوانٍ", "#00e5ff");
+    }
 
     if (game.combo > 0 && game.combo % 10 === 0) game.shake = 5; // مكافأة اهتزاز خفيف
 
@@ -486,6 +532,29 @@ function onCatch(orb) {
   updateHUD();
 }
 
+/** انفجار القنبلة يزيل الكرات القريبة عند مطابقتها */
+function detonateBomb(source) {
+  const blastRadius = 150 * GAME_SCALE;
+  const blastRadiusSquared = blastRadius * blastRadius;
+  let cleared = 0;
+
+  for (const orb of game.orbs) {
+    if (orb.destroyed) continue;
+    const dx = orb.x - source.x;
+    const dy = orb.y - source.y;
+    if (dx * dx + dy * dy <= blastRadiusSquared) {
+      orb.destroyed = true;
+      cleared++;
+      burst(orb.x, orb.y, orb.color, 10, 220);
+    }
+  }
+
+  burst(source.x, source.y, source.color, 54, 420);
+  game.shake = Math.max(game.shake, 10);
+  addFloater(source.x, source.y - 22 * GAME_SCALE, "انفجار!", "#ffc400");
+  return cleared;
+}
+
 /** تحديث كل الكرات الساقطة */
 function updateOrbs(dt) {
   const top    = player.y - player.h / 2;
@@ -493,10 +562,14 @@ function updateOrbs(dt) {
 
   for (let i = game.orbs.length - 1; i >= 0; i--) {
     const o = game.orbs[i];
+    if (o.destroyed) {
+      game.orbs.splice(i, 1);
+      continue;
+    }
 
     o.y += o.vy * dt;
     o.wob += dt * 3.5;
-    o.x += Math.sin(o.wob) * 8 * dt;   // تمايل خفيف
+    o.x += Math.sin(o.wob) * 8 * GAME_SCALE * dt;   // تمايل خفيف متناسب مع الشاشة
 
     // --- كشف التصادم مع المنصّة ---
     if (o.y + o.r > top && o.y - o.r < bottom &&
@@ -510,6 +583,8 @@ function updateOrbs(dt) {
     // --- خرجت من أسفل الشاشة ---
     if (o.y - o.r > H) game.orbs.splice(i, 1);
   }
+
+  game.orbs = game.orbs.filter((orb) => !orb.destroyed);
 }
 
 /** توليد الكرات حسب المؤقّت */
@@ -534,12 +609,12 @@ function updateColorTimer(dt) {
 
 /** الخلفية: شبكة نيون متحركة */
 function drawGrid() {
-  const gs = 62;
-  const off = (time * 22) % gs;
+  const gs = 62 * GAME_SCALE;
+  const off = (time * 22 * GAME_SCALE) % gs;
 
   ctx.save();
   ctx.strokeStyle = "rgba(110, 150, 255, 0.055)";
-  ctx.lineWidth = 1;
+  ctx.lineWidth = Math.max(0.75, GAME_SCALE);
 
   ctx.beginPath();
   for (let x = -gs + off; x < W + gs; x += gs) {
@@ -569,7 +644,7 @@ function drawOrbs() {
 
     ctx.save();
     ctx.shadowColor = c.main;
-    ctx.shadowBlur = 22;
+    ctx.shadowBlur = 22 * GAME_SCALE;
 
     const g = ctx.createRadialGradient(
       o.x - o.r * 0.35, o.y - o.r * 0.35, o.r * 0.1,
@@ -583,6 +658,16 @@ function drawOrbs() {
     ctx.beginPath();
     ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
     ctx.fill();
+
+    if (o.type === "bomb" || o.type === "freeze") {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 " + Math.max(10, o.r * 1.25) + "px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = o.type === "bomb" ? "#ffc400" : "#b8f6ff";
+      ctx.shadowBlur = 7 * GAME_SCALE;
+      ctx.fillText(o.type === "bomb" ? "✹" : "❄", o.x, o.y);
+    }
     ctx.restore();
   }
 }
@@ -598,19 +683,19 @@ function drawPlayer() {
 
   // جسم المنصّة
   ctx.shadowColor = c.main;
-  ctx.shadowBlur = 26;
+  ctx.shadowBlur = 26 * GAME_SCALE;
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
   roundRect(x - w / 2, y - h / 2, w, h, h / 2);
   ctx.fill();
 
   ctx.strokeStyle = c.main;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3 * GAME_SCALE;
   roundRect(x - w / 2, y - h / 2, w, h, h / 2);
   ctx.stroke();
 
   // النواة المتوهجة في المنتصف
-  ctx.shadowBlur = 34;
+  ctx.shadowBlur = 34 * GAME_SCALE;
   ctx.fillStyle = c.main;
   ctx.beginPath();
   ctx.arc(x, y, h * 0.5, 0, Math.PI * 2);
@@ -626,10 +711,10 @@ function drawPlayer() {
     ctx.beginPath();
     ctx.arc(x, y, h * 1.55, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
     ctx.strokeStyle = p < 0.28 ? "#ff2f6d" : "rgba(255, 255, 255, 0.65)";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3 * GAME_SCALE;
     ctx.lineCap = "round";
     ctx.shadowColor = p < 0.28 ? "#ff2f6d" : "rgba(255,255,255,0.7)";
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 10 * GAME_SCALE;
     ctx.stroke();
     ctx.restore();
   }
@@ -638,11 +723,28 @@ function drawPlayer() {
   ctx.save();
   ctx.strokeStyle = "rgba(120, 170, 255, 0.14)";
   ctx.lineWidth = 2;
-  ctx.setLineDash([8, 14]);
+  ctx.setLineDash([8 * GAME_SCALE, 14 * GAME_SCALE]);
   ctx.beginPath();
-  ctx.moveTo(0, player.y + 34);
-  ctx.lineTo(W, player.y + 34);
+  ctx.moveTo(0, player.y + 34 * GAME_SCALE);
+  ctx.lineTo(W, player.y + 34 * GAME_SCALE);
   ctx.stroke();
+  ctx.restore();
+}
+
+/** توهج جليدي خفيف أثناء تأثير كرة التجميد */
+function drawFreezeEffect() {
+  if (game.state !== "playing" || game.freezeTimer <= 0) return;
+  const pulse = 0.025 + (Math.sin(time * 7) + 1) * 0.012;
+  const inset = 8 * GAME_SCALE;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 229, 255, " + pulse + ")";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(110, 235, 255, 0.55)";
+  ctx.lineWidth = 2 * GAME_SCALE;
+  ctx.shadowColor = "#00e5ff";
+  ctx.shadowBlur = 14 * GAME_SCALE;
+  ctx.strokeRect(inset, inset, Math.max(0, W - inset * 2), Math.max(0, H - inset * 2));
   ctx.restore();
 }
 
@@ -652,13 +754,14 @@ function render() {
 
   // اهتزاز الشاشة
   if (game.shake > 0.5) {
-    const s = game.shake;
+    const s = game.shake * GAME_SCALE;
     ctx.translate(rand(-s, s), rand(-s, s));
   }
 
   // الخلفية (نرسم أوسع قليلًا لتفادي فراغات الاهتزاز)
   ctx.fillStyle = bgGrad;
-  ctx.fillRect(-30, -30, W + 60, H + 60);
+  const overscan = 30 * GAME_SCALE;
+  ctx.fillRect(-overscan, -overscan, W + overscan * 2, H + overscan * 2);
 
   drawGrid();
   drawOrbs();
@@ -666,6 +769,7 @@ function render() {
   drawParticles();
   drawFloaters();
   drawConfetti();
+  drawFreezeEffect();
 
   ctx.restore();
 
@@ -690,25 +794,31 @@ function loop(ts) {
   // تقييد الخطوة الزمنية لتجنّب القفزات عند تبديل التبويبات
   dt = Math.min(dt, 0.05);
 
-  time += dt;
+  let simulationDt = dt;
+  if (game.state === "playing" && game.freezeTimer > 0) {
+    game.freezeTimer = Math.max(0, game.freezeTimer - dt);
+    simulationDt = dt * 0.2;
+  }
+
+  time += simulationDt;
 
   // --- تحديثات عامة (تعمل في كل الحالات) ---
   if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 62);
   if (flashRed > 0)   flashRed = Math.max(0, flashRed - dt * 2.2);
 
-  updateParticles(dt);
-  updateFloaters(dt);
-  updateConfetti(dt);
+  updateParticles(simulationDt);
+  updateFloaters(simulationDt);
+  updateConfetti(simulationDt);
 
   // --- منطق اللعب ---
   if (game.state === "playing") {
-    game.elapsed += dt;
+    game.elapsed += simulationDt;
 
     updateDifficulty();
-    updatePlayer(dt);
-    updateColorTimer(dt);
-    updateOrbs(dt);
-    updateSpawning(dt);
+    updatePlayer(dt); // تبقى حركة اللاعب مباشرة أثناء تأثير التجميد
+    updateColorTimer(simulationDt);
+    updateOrbs(simulationDt);
+    updateSpawning(simulationDt);
   }
 
   render();
@@ -729,6 +839,7 @@ const overScreen   = document.getElementById("over-screen");
 const startBtn     = document.getElementById("start-btn");
 const restartBtn   = document.getElementById("restart-btn");
 const homeBtn      = document.getElementById("home-btn");
+const shareBtn     = document.getElementById("share-btn");
 
 const finalScoreEl = document.getElementById("final-score");
 const bestScoreEl  = document.getElementById("best-score");
@@ -782,6 +893,7 @@ function startGame() {
   game.combo        = 0;
   game.maxCombo     = 0;
   game.elapsed      = 0;
+  game.freezeTimer  = 0;
   game.difficulty   = 1;
   game.fallSpeed    = 160;
   game.spawnInterval = 0.9;
@@ -825,9 +937,27 @@ function returnToHome() {
   updateHUD();
 }
 
+/** مشاركة النتيجة باستخدام نافذة المشاركة أو WhatsApp كخيار احتياطي */
+function shareScore() {
+  const message = "I scored " + game.score + " points in NEON MATCH! Can you beat my score?";
+  const url = window.location.href;
+  const whatsappUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message + " " + url);
+
+  if (typeof navigator.share === "function") {
+    navigator.share({ title: "NEON MATCH", text: message, url })
+      .catch((error) => {
+        if (!error || error.name !== "AbortError") window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      });
+  } else {
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  }
+}
+
 /** إنهاء اللعبة */
 function endGame() {
   game.state = "over";
+  game.freezeTimer = 0;
+  vibrate([100, 50, 100]);
 
   const isNewRecord = game.score > game.best;
   if (isNewRecord) {
@@ -866,9 +996,10 @@ function endGame() {
 startBtn.addEventListener("click", startGame);
 restartBtn.addEventListener("click", startGame);
 homeBtn.addEventListener("click", returnToHome);
+shareBtn.addEventListener("click", shareScore);
 
 // منع تمرير الصفحة عند اللمس على الأزرار
-[startBtn, restartBtn, homeBtn].forEach(btn => {
+[startBtn, restartBtn, homeBtn, shareBtn].forEach(btn => {
   btn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
 });
 

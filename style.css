@@ -13,15 +13,21 @@
 html, body {
   width: 100%;
   height: 100%;
+  min-height: 100%;
   overflow: hidden;
   background: #05060f;
   font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   color: #eaf2ff;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 #game-wrap {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -29,6 +35,8 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   touch-action: none;   /* منع التمرير/التكبير أثناء اللعب على الجوال */
   cursor: crosshair;
 }
@@ -42,7 +50,7 @@ canvas {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 14px 18px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-right, 0px)) 14px calc(18px + env(safe-area-inset-left, 0px));
   pointer-events: none;
   direction: ltr;           /* لضبط توزيع العناصر بدقة */
   z-index: 5;
@@ -50,7 +58,7 @@ canvas {
 }
 
 .hud-label {
-  font-size: 10px;
+  font-size: clamp(9px, 2.8vw, 10px);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #7f8db3;
@@ -58,13 +66,13 @@ canvas {
 }
 
 .hud-value {
-  font-size: 30px;
+  font-size: clamp(22px, 7.5vw, 30px);
   font-weight: 900;
   line-height: 1.1;
   color: #ffffff;
 }
 
-.hud-value.small { font-size: 20px; color: #9fb2dd; }
+.hud-value.small { font-size: clamp(16px, 5.2vw, 20px); color: #9fb2dd; }
 
 .hud-right { text-align: right; }
 
@@ -86,14 +94,14 @@ canvas {
 /* نقاط الحياة */
 .lives {
   display: flex;
-  gap: 7px;
+  gap: clamp(5px, 1.8vw, 7px);
   justify-content: flex-end;
   margin-top: 8px;
 }
 
 .life {
-  width: 12px;
-  height: 12px;
+  width: clamp(9px, 3vw, 12px);
+  height: clamp(9px, 3vw, 12px);
   border-radius: 50%;
   background: #ff2f6d;
   box-shadow: 0 0 12px #ff2f6d, 0 0 4px #fff inset;
@@ -116,8 +124,12 @@ canvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  justify-content: safe center;
   gap: 16px;
-  padding: 26px;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
   z-index: 10;
   background: radial-gradient(circle at 50% 40%, rgba(24, 30, 72, 0.72), rgba(5, 6, 15, 0.93));
@@ -167,8 +179,9 @@ canvas {
 }
 
 #start-screen .title {
-  font-size: clamp(42px, 12.5vw, 82px);
+  font-size: clamp(32px, 12.5vw, 82px);
   letter-spacing: clamp(1px, 0.6vw, 4px);
+  max-width: 100%;
 }
 
 #start-screen .subtitle {
@@ -265,6 +278,23 @@ canvas {
   box-shadow: 0 0 26px rgba(0, 229, 255, 0.38);
 }
 
+.btn-share {
+  margin-top: 0;
+  padding: 12px 38px;
+  font-size: clamp(15px, 4vw, 18px);
+  color: #effff7;
+  background: linear-gradient(135deg, #075d41, #20b977 58%, #00e5a0);
+  border: 1px solid rgba(99, 255, 190, 0.58);
+  box-shadow: 0 0 18px rgba(32, 185, 119, 0.28), inset 0 0 14px rgba(140, 255, 201, 0.12);
+  animation: none;
+}
+
+.btn-share:hover {
+  color: #fff;
+  border-color: #63ffbe;
+  box-shadow: 0 0 26px rgba(32, 220, 140, 0.48);
+}
+
 /* شاشة النهاية */
 .go-title {
   font-size: clamp(30px, 9vw, 52px);
@@ -331,9 +361,32 @@ canvas {
 
 /* شاشات صغيرة جدًا */
 @media (max-height: 560px) {
-  .overlay { gap: 10px; padding: 14px; }
+  .overlay {
+    gap: 10px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  }
   .btn { padding: 12px 38px; }
-  #start-screen.start-screen-overlay { gap: 10px; padding-top: 18px; padding-bottom: 18px; }
-  #start-screen .title { font-size: clamp(36px, 10vw, 60px); }
+  #start-screen.start-screen-overlay {
+    gap: 10px;
+    padding-top: max(18px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  }
+  #start-screen .title { font-size: clamp(30px, 9.5vw, 58px); }
   .best-card { padding: 9px 20px 8px; }
+}
+
+@media (max-width: 360px) {
+  #hud {
+    padding-left: calc(10px + env(safe-area-inset-left, 0px));
+    padding-right: calc(10px + env(safe-area-inset-right, 0px));
+  }
+
+  .score-box { gap: 8px; }
+  .score-item { flex-basis: 92px; padding: 11px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+  }
 }
