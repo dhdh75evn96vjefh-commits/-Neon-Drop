@@ -1,0 +1,9 @@
+{
+  "name": "Neon Match",
+  "short_name": "NeonMatch",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#05060f",
+  "theme_color": "#05060f"
+}
