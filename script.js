@@ -98,6 +98,7 @@ const MAX_GAME_SCALE = 1.35;
 /* ============================================================
    2) إعداد اللوحة القماشية
    ============================================================ */
+const gameWrap = document.getElementById("game-wrap");
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -106,11 +107,11 @@ let GAME_SCALE = 1;
 let bgGrad = null;
 
 function resize() {
-  const previousWidth = W || window.innerWidth;
+  const previousWidth = W || gameWrap.clientWidth || window.innerWidth;
   const previousScale = GAME_SCALE;
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = Math.max(1, Math.round(window.innerWidth));
-  H = Math.max(1, Math.round(window.innerHeight));
+  W = Math.max(1, Math.round(gameWrap.clientWidth || window.innerWidth));
+  H = Math.max(1, Math.round(gameWrap.clientHeight || window.innerHeight));
   GAME_SCALE = clamp(
     Math.min(W / BASE_VIEWPORT_WIDTH, H / BASE_VIEWPORT_HEIGHT),
     MIN_GAME_SCALE,
@@ -148,6 +149,9 @@ function resize() {
 window.addEventListener("resize", resize, { passive: true });
 window.visualViewport?.addEventListener("resize", resize, { passive: true });
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));
+if ("ResizeObserver" in window) {
+  new ResizeObserver(resize).observe(gameWrap);
+}
 
 /* ============================================================
    3) المحرّك الصوتي (Web Audio API) — أصوات مولّدة برمجيًا
@@ -278,19 +282,35 @@ const keys = { left: false, right: false };
 let pointerActive = false;
 let pointerX = 0;
 
-canvas.addEventListener("pointermove", (e) => {
-  pointerX = e.clientX;
+function setPointerFromClientX(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / (rect.width || W);
+  pointerX = clamp((clientX - rect.left) * scaleX, 0, W);
   pointerActive = true;
+}
+
+canvas.addEventListener("pointermove", (e) => {
+  setPointerFromClientX(e.clientX);
 }, { passive: true });
 
 canvas.addEventListener("pointerdown", (e) => {
-  pointerX = e.clientX;
-  pointerActive = true;
+  setPointerFromClientX(e.clientX);
   Sound.init();
 }, { passive: true });
 
-// منع التمرير باللمس داخل اللوحة
-canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+// دعم أحداث اللمس مباشرة كمسار احتياطي، مع منع تمرير الصفحة أثناء اللعب.
+canvas.addEventListener("touchstart", (e) => {
+  const touch = e.changedTouches[0];
+  if (!touch) return;
+  setPointerFromClientX(touch.clientX);
+  Sound.init();
+}, { passive: true });
+
+canvas.addEventListener("touchmove", (e) => {
+  const touch = e.changedTouches[0];
+  if (touch) setPointerFromClientX(touch.clientX);
+  e.preventDefault();
+}, { passive: false });
 
 window.addEventListener("keydown", (e) => {
   const shopIsOpen = !shopScreen.classList.contains("hidden");
