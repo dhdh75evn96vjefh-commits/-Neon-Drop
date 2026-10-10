@@ -197,6 +197,8 @@ const game = {
   elapsed: 0,            // الزمن الفعلي للعب (ثواني)
   freezeTimer: 0,
   coinsEarned: 0,
+  speedBoostActive: false,
+  masterModeActive: false,
 
   difficulty: 1,
   fallSpeed: 160,
@@ -446,17 +448,36 @@ function drawConfetti() {
 function updateDifficulty() {
   const d = Math.min(8, 1 + game.elapsed / 22 + game.score / 420);
   game.difficulty    = d;
-  game.fallSpeed     = (140 + d * 27) * GAME_SCALE;        // سرعة سقوط متناسبة مع الشاشة
-  game.spawnInterval = Math.max(0.30, 0.95 - d * 0.072);   // معدّل التوليد
+  game.fallSpeed     = (140 + d * 27) * GAME_SCALE * (game.speedBoostActive ? 1.15 : 1); // سرعة سقوط متناسبة مع الشاشة
+  const spawnRateMultiplier = game.masterModeActive ? 0.78 : 1;
+  const minimumSpawnInterval = game.masterModeActive ? 0.22 : 0.30;
+  game.spawnInterval = Math.max(minimumSpawnInterval, (0.95 - d * 0.072) * spawnRateMultiplier);
   game.colorDuration = Math.max(3.2, 8.5 - d * 0.66);      // مدة ثبات اللون
+}
+
+/** تحديد نوع الكرة حسب التقدم واحتمالات المستوى */
+function chooseOrbType(roll) {
+  const trickChance = game.masterModeActive ? 0.30 : game.score > 600 ? 0.15 : 0;
+  if (roll < trickChance) return "trick";
+
+  let cutoff = trickChance;
+  if (game.score > 1000) {
+    cutoff += 0.04;
+    if (roll < cutoff) return "coin";
+  }
+
+  cutoff += 0.05;
+  if (roll < cutoff) return "bomb";
+  cutoff += 0.05;
+  if (roll < cutoff) return "freeze";
+  return "normal";
 }
 
 /** توليد كرة جديدة مع ترجيح لون الهدف قليلًا */
 function spawnOrb() {
   const n = activeColorCount();
   let colorIdx;
-  const roll = Math.random();
-  const type = roll < 0.05 ? "bomb" : roll < 0.10 ? "freeze" : "normal";
+  const type = chooseOrbType(Math.random());
 
   if (Math.random() < 0.42) {
     // ترجيح: 42% من الكرات تحمل لون المنصّة الحالي
@@ -517,8 +538,33 @@ function updatePlayer(dt) {
   player.x = clamp(player.x, half, W - half);
 }
 
+/** تفعيل عتبات التقدم عند تجاوز النقاط المطلوبة */
+function updateMilestones() {
+  if (game.score > 1000 && !game.speedBoostActive) {
+    game.speedBoostActive = true;
+    for (const orb of game.orbs) if (!orb.destroyed) orb.vy *= 1.15;
+    showMilestoneBanner("Level 2: Speed Up!");
+  }
+
+  if (game.score > 1500 && !game.masterModeActive) {
+    game.masterModeActive = true;
+    showMilestoneBanner("Level 3: Master Mode!");
+  }
+}
+
 /** معالجة التقاط كرة */
 function onCatch(orb) {
+  if (orb.type === "trick") {
+    game.combo = 0;
+    game.shake = Math.max(game.shake, 7);
+    flashRed = Math.max(flashRed, 0.28);
+    burst(orb.x, orb.y, orb.color, 18, 220);
+    addFloater(orb.x, orb.y - 8 * GAME_SCALE, "Missed!", "#ff4268");
+    Sound.wrong();
+    updateHUD();
+    return;
+  }
+
   const isMatch = orb.color === game.targetColor;
 
   if (isMatch) {
@@ -527,11 +573,12 @@ function onCatch(orb) {
     game.maxCombo = Math.max(game.maxCombo, game.combo);
 
     const mult = comboMultiplier();
-    const pts  = 10 * mult;
+    const pts  = 10 * mult * (orb.type === "coin" ? 2 : 1);
     game.score += pts;
     awardCoins(Math.floor(pts / 10));
 
-    addFloater(orb.x, orb.y - 8, "+" + pts, COLORS[orb.color].main);
+    addFloater(orb.x, orb.y - 8, "+" + pts, orb.type === "coin" ? "#ffd166" : COLORS[orb.color].main);
+    if (orb.type === "coin") addFloater(orb.x, orb.y - 26 * GAME_SCALE, "2× BONUS", "#ffd166");
     burst(orb.x, orb.y, orb.color, 26, 280);
 
     if (orb.type === "bomb") {
@@ -549,6 +596,8 @@ function onCatch(orb) {
       burst(orb.x, orb.y, orb.color, 34, 240);
       addFloater(orb.x, orb.y - 26 * GAME_SCALE, "تباطؤ 5 ثوانٍ", "#00e5ff");
     }
+
+    updateMilestones();
 
     if (game.combo > 0 && game.combo % 10 === 0) game.shake = 5; // مكافأة اهتزاز خفيف
 
@@ -688,6 +737,62 @@ function drawGrid() {
 /** رسم الكرات الساقطة */
 function drawOrbs() {
   for (const o of game.orbs) {
+    if (o.type === "trick") {
+      const pulse = 0.5 + 0.5 * Math.sin(time * 17 + o.wob);
+      ctx.save();
+      ctx.globalAlpha = 0.72 + pulse * 0.28;
+      ctx.shadowColor = pulse > 0.55 ? "#ff4268" : "#76172d";
+      ctx.shadowBlur = (8 + pulse * 16) * GAME_SCALE;
+      const trickGlow = ctx.createRadialGradient(
+        o.x - o.r * 0.3, o.y - o.r * 0.35, o.r * 0.08,
+        o.x, o.y, o.r
+      );
+      trickGlow.addColorStop(0, "#60404a");
+      trickGlow.addColorStop(0.55, "#1b1018");
+      trickGlow.addColorStop(1, "#030308");
+      ctx.fillStyle = trickGlow;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2 * GAME_SCALE;
+      ctx.strokeStyle = pulse > 0.55 ? "#ff5578" : "#681a30";
+      ctx.stroke();
+      ctx.fillStyle = "#ffdbe3";
+      ctx.font = "900 " + Math.max(9, o.r * 1.05) + "px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("?", o.x, o.y);
+      ctx.restore();
+      continue;
+    }
+
+    if (o.type === "coin") {
+      ctx.save();
+      ctx.shadowColor = "#ffc400";
+      ctx.shadowBlur = 24 * GAME_SCALE;
+      const coinGlow = ctx.createRadialGradient(
+        o.x - o.r * 0.35, o.y - o.r * 0.35, o.r * 0.08,
+        o.x, o.y, o.r
+      );
+      coinGlow.addColorStop(0, "#fff8cf");
+      coinGlow.addColorStop(0.5, "#ffd166");
+      coinGlow.addColorStop(1, "#9c5d00");
+      ctx.fillStyle = coinGlow;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#fff1a8";
+      ctx.lineWidth = 1.5 * GAME_SCALE;
+      ctx.stroke();
+      ctx.fillStyle = "#603900";
+      ctx.font = "900 " + Math.max(8, o.r * 0.9) + "px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("2×", o.x, o.y);
+      ctx.restore();
+      continue;
+    }
+
     const c = COLORS[o.color];
 
     ctx.save();
@@ -897,6 +1002,9 @@ const homeBtn      = document.getElementById("home-btn");
 const shareBtn     = document.getElementById("share-btn");
 const shopOpenBtn  = document.getElementById("shop-open-btn");
 const shopCloseBtn = document.getElementById("shop-close-btn");
+const milestoneBannerEl = document.getElementById("milestone-banner");
+let milestoneBannerQueue = [];
+let milestoneBannerTimer = 0;
 
 const finalScoreEl = document.getElementById("final-score");
 const bestScoreEl  = document.getElementById("best-score");
@@ -944,6 +1052,35 @@ function updateCoinDisplays() {
   if (coinBalanceOverEl) coinBalanceOverEl.textContent = balance;
   if (shopCoinBalanceEl) shopCoinBalanceEl.textContent = balance;
   if (coinsEarnedEl) coinsEarnedEl.textContent = String(game.coinsEarned);
+}
+
+function presentNextMilestoneBanner() {
+  const message = milestoneBannerQueue.shift();
+  if (!message) {
+    milestoneBannerEl.classList.add("hidden");
+    return;
+  }
+
+  milestoneBannerEl.textContent = message;
+  milestoneBannerEl.classList.remove("hidden");
+  milestoneBannerTimer = setTimeout(() => {
+    milestoneBannerTimer = 0;
+    if (milestoneBannerQueue.length) presentNextMilestoneBanner();
+    else milestoneBannerEl.classList.add("hidden");
+  }, 1800);
+}
+
+function showMilestoneBanner(message) {
+  milestoneBannerQueue.push(message);
+  if (!milestoneBannerTimer) presentNextMilestoneBanner();
+}
+
+function resetMilestoneBanner() {
+  if (milestoneBannerTimer) clearTimeout(milestoneBannerTimer);
+  milestoneBannerTimer = 0;
+  milestoneBannerQueue = [];
+  milestoneBannerEl.textContent = "";
+  milestoneBannerEl.classList.add("hidden");
 }
 
 function persistShopState() {
@@ -1070,6 +1207,7 @@ function closeShop() {
 function startGame() {
   Sound.init();
   Sound.start();
+  resetMilestoneBanner();
 
   // إعادة ضبط الحالة
   game.state        = "playing";
@@ -1080,6 +1218,8 @@ function startGame() {
   game.elapsed      = 0;
   game.freezeTimer  = 0;
   game.coinsEarned  = 0;
+  game.speedBoostActive = false;
+  game.masterModeActive = false;
   game.difficulty   = 1;
   game.fallSpeed    = 160;
   game.spawnInterval = 0.9;
@@ -1128,11 +1268,10 @@ function returnToHome() {
 /** مشاركة النتيجة باستخدام نافذة المشاركة أو WhatsApp كخيار احتياطي */
 function shareScore() {
   const message = "I scored " + game.score + " points in NEON MATCH! Can you beat my score?";
-  const url = window.location.href;
-  const whatsappUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message + " " + url);
+  const whatsappUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
 
   if (typeof navigator.share === "function") {
-    navigator.share({ title: "NEON MATCH", text: message, url })
+    navigator.share({ title: "NEON MATCH", text: message })
       .catch((error) => {
         if (!error || error.name !== "AbortError") window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       });
@@ -1143,6 +1282,7 @@ function shareScore() {
 
 /** إنهاء اللعبة */
 function endGame() {
+  resetMilestoneBanner();
   game.state = "over";
   game.freezeTimer = 0;
   vibrate([100, 50, 100]);

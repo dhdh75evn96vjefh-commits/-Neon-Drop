@@ -586,3 +586,42 @@ canvas {
   .theme-swatches { width: 48px; height: 48px; }
   .shop-card-heading h3 { font-size: 13px; }
 }
+
+
+/* إشعارات مراحل التقدم داخل الجولة */
+.milestone-banner {
+  position: absolute;
+  z-index: 7;
+  top: calc(94px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  width: max-content;
+  min-width: min(270px, calc(100% - 28px));
+  max-width: calc(100% - 28px);
+  padding: 11px 20px;
+  border: 1px solid rgba(255, 196, 0, 0.58);
+  border-radius: 999px;
+  color: #fff6d5;
+  background: linear-gradient(135deg, rgba(26, 22, 40, 0.96), rgba(9, 13, 30, 0.96));
+  box-shadow: 0 0 24px rgba(255, 196, 0, 0.22), inset 0 0 16px rgba(255, 255, 255, 0.035);
+  font-size: clamp(13px, 4vw, 16px);
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  line-height: 1.25;
+  text-align: center;
+  direction: ltr;
+  pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%);
+  transition: opacity .22s ease, transform .22s ease, visibility .22s ease;
+}
+
+.milestone-banner.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -10px);
+}
+
+@media (max-height: 560px) {
+  .milestone-banner { top: calc(76px + env(safe-area-inset-top, 0px)); }
+}
