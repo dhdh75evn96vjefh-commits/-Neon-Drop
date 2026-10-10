@@ -872,6 +872,14 @@ homeBtn.addEventListener("click", returnToHome);
   btn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
 });
 
+// تسجيل عامل الخدمة لدعم التخزين المؤقت والعمل دون اتصال على HTTPS أو localhost.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js", { scope: "./" })
+      .catch((error) => console.warn("تعذّر تسجيل Service Worker:", error));
+  });
+}
+
 // تهيئة أولية
 loadBest();
 resize();
