@@ -33,6 +33,14 @@
     <h1 class="title">NEON MATCH</h1>
     <p class="subtitle">جاهز لتحدّي الألوان؟</p>
     <button id="start-btn" class="btn">ابدأ اللعب</button>
+    <div class="home-store-row">
+      <div class="coin-wallet-pill" aria-label="رصيد العملات">
+        <span class="coin-token" aria-hidden="true">✦</span>
+        <strong id="coin-balance-start">0</strong>
+        <span>عملات</span>
+      </div>
+      <button id="shop-open-btn" class="btn-shop" type="button">المتجر</button>
+    </div>
     <div class="best-card" aria-label="أعلى نتيجة">
       <span class="best-card-label">أعلى نتيجة</span>
       <strong id="best-start">0</strong>
@@ -50,11 +58,33 @@
       <div class="score-item"><span>أطول سلسلة</span><strong id="max-combo">0</strong></div>
     </div>
 
+    <div class="coin-summary" aria-label="ملخص العملات">
+      <div><span>عملات الجولة</span><strong id="coins-earned">0</strong></div>
+      <div><span>الرصيد الكلي</span><strong id="coin-balance-over">0</strong></div>
+    </div>
+
     <p id="new-record" class="new-record hidden">🎉 رقم قياسي جديد! 🎉</p>
 
     <button id="restart-btn" class="btn">العب مرة أخرى</button>
     <button id="home-btn" class="btn btn-secondary">الصفحة الرئيسية</button>
     <button id="share-btn" class="btn btn-share">Share Score</button>
+  </div>
+
+  <!-- ===== متجر المظاهر ===== -->
+  <div id="shop-screen" class="overlay shop-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shop-title" aria-hidden="true">
+    <div class="shop-heading">
+      <div>
+        <h2 id="shop-title">متجر المظاهر</h2>
+        <p>اختر ألوانك واحفظ مظهرك المفضّل</p>
+      </div>
+      <div class="shop-wallet" aria-label="رصيد العملات">
+        <span class="coin-token" aria-hidden="true">✦</span>
+        <strong id="shop-coin-balance">0</strong>
+      </div>
+    </div>
+    <p id="shop-status" class="shop-status" aria-live="polite"></p>
+    <div id="shop-items" class="shop-items"></div>
+    <button id="shop-close-btn" class="btn btn-secondary shop-close-btn" type="button">العودة</button>
   </div>
 </div>
 

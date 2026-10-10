@@ -3,14 +3,49 @@
 /* ============================================================
    1) الثوابت والألوان
    ============================================================ */
-const COLORS = [
-  { main: "#00e5ff", dark: "#006b8f" },  // سماوي
-  { main: "#ff2fd0", dark: "#8f0080" },  // ماجنتا
-  { main: "#ffc400", dark: "#8f6a00" },  // عنبري
-  { main: "#7cff3d", dark: "#3a7a1a" }   // أخضر لايم (يُفتح لاحقًا)
+const THEME_CATALOG = [
+  {
+    id: "classic", name: "Classic Neon", subtitle: "النيون الكلاسيكي", description: "ألوان النيون الأصلية للعبة.", price: 0,
+    colors: [
+      { main: "#00e5ff", dark: "#006b8f" },
+      { main: "#ff2fd0", dark: "#8f0080" },
+      { main: "#ffc400", dark: "#8f6a00" },
+      { main: "#7cff3d", dark: "#3a7a1a" }
+    ],
+    background: ["#060814", "#0a0d22", "#150b28"], accent: "#00e5ff", secondary: "#ff2fd0"
+  },
+  {
+    id: "golden", name: "Golden Glow", subtitle: "التوهّج الذهبي", description: "درجات ذهبية دافئة بتوهّج معدني.", price: 30,
+    colors: [
+      { main: "#ffd166", dark: "#966500" },
+      { main: "#ffae00", dark: "#895000" },
+      { main: "#fff0a3", dark: "#9e8100" },
+      { main: "#e9a900", dark: "#7a5500" }
+    ],
+    background: ["#100a03", "#211505", "#302004"], accent: "#ffd166", secondary: "#ffae00"
+  },
+  {
+    id: "cyberpunk-red", name: "Cyberpunk Red", subtitle: "سايبربانك أحمر", description: "أحمر كهربائي مع لمسات بنفسجية مستقبلية.", price: 60,
+    colors: [
+      { main: "#ff315d", dark: "#8c1230" },
+      { main: "#ff006e", dark: "#8b0040" },
+      { main: "#ff5722", dark: "#8d260e" },
+      { main: "#c000d4", dark: "#5e0069" }
+    ],
+    background: ["#08030b", "#1a0411", "#21081b"], accent: "#ff315d", secondary: "#c000d4"
+  }
 ];
 
+const COLORS = THEME_CATALOG[0].colors.map((color) => ({ ...color }));
+let ACTIVE_THEME = THEME_CATALOG[0];
+
 const STORAGE_KEY = "neonMatch_highScore_v1";
+const COIN_STORAGE_KEY = "neonMatch_coins_v1";
+const OWNED_THEMES_STORAGE_KEY = "neonMatch_ownedThemes_v1";
+const EQUIPPED_THEME_STORAGE_KEY = "neonMatch_equippedTheme_v1";
+let playerCoins = 0;
+let ownedThemes = new Set(["classic"]);
+let equippedThemeId = "classic";
 const ORB_RADIUS = 15;           // نصف قطر الكرة
 const PLAYER_H = 20;             // ارتفاع المنصّة
 const BASE_VIEWPORT_WIDTH = 390;
@@ -50,9 +85,9 @@ function resize() {
 
   // خلفية متدرجة (تُنشأ مرة واحدة عند كل تغيير حجم)
   bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0,    "#060814");
-  bgGrad.addColorStop(0.55, "#0a0d22");
-  bgGrad.addColorStop(1,    "#150b28");
+  bgGrad.addColorStop(0,    ACTIVE_THEME.background[0]);
+  bgGrad.addColorStop(0.55, ACTIVE_THEME.background[1]);
+  bgGrad.addColorStop(1,    ACTIVE_THEME.background[2]);
 
   // إعادة ضبط موضع وحجم اللاعب
   player.w = clamp(W * 0.24, 82 * GAME_SCALE, 130 * GAME_SCALE);
@@ -161,6 +196,7 @@ const game = {
   maxCombo: 0,
   elapsed: 0,            // الزمن الفعلي للعب (ثواني)
   freezeTimer: 0,
+  coinsEarned: 0,
 
   difficulty: 1,
   fallSpeed: 160,
@@ -212,6 +248,14 @@ canvas.addEventListener("pointerdown", (e) => {
 canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
 window.addEventListener("keydown", (e) => {
+  if (!shopScreen.classList.contains("hidden")) {
+    if (e.code === "Escape") {
+      e.preventDefault();
+      closeShop();
+    }
+    return;
+  }
+
   switch (e.code) {
     case "ArrowLeft":
     case "KeyA":
@@ -485,18 +529,22 @@ function onCatch(orb) {
     const mult = comboMultiplier();
     const pts  = 10 * mult;
     game.score += pts;
+    awardCoins(Math.floor(pts / 10));
 
     addFloater(orb.x, orb.y - 8, "+" + pts, COLORS[orb.color].main);
     burst(orb.x, orb.y, orb.color, 26, 280);
 
     if (orb.type === "bomb") {
+      awardCoins(3);
       const cleared = detonateBomb(orb);
       if (cleared > 0) {
         const bonus = cleared * 10;
         game.score += bonus;
+        awardCoins(Math.floor(bonus / 10));
         addFloater(orb.x, orb.y - 28 * GAME_SCALE, "+" + bonus, "#ffc400");
       }
     } else if (orb.type === "freeze") {
+      awardCoins(3);
       game.freezeTimer = 5;
       burst(orb.x, orb.y, orb.color, 34, 240);
       addFloater(orb.x, orb.y - 26 * GAME_SCALE, "تباطؤ 5 ثوانٍ", "#00e5ff");
@@ -833,13 +881,22 @@ const bestEl       = document.getElementById("best");
 const comboEl      = document.getElementById("combo");
 const livesEl      = document.getElementById("lives");
 const bestStartEl  = document.getElementById("best-start");
+const coinBalanceStartEl = document.getElementById("coin-balance-start");
+const coinBalanceOverEl = document.getElementById("coin-balance-over");
+const coinsEarnedEl = document.getElementById("coins-earned");
+const shopCoinBalanceEl = document.getElementById("shop-coin-balance");
 
 const startScreen  = document.getElementById("start-screen");
 const overScreen   = document.getElementById("over-screen");
+const shopScreen   = document.getElementById("shop-screen");
+const shopItemsEl  = document.getElementById("shop-items");
+const shopStatusEl = document.getElementById("shop-status");
 const startBtn     = document.getElementById("start-btn");
 const restartBtn   = document.getElementById("restart-btn");
 const homeBtn      = document.getElementById("home-btn");
 const shareBtn     = document.getElementById("share-btn");
+const shopOpenBtn  = document.getElementById("shop-open-btn");
+const shopCloseBtn = document.getElementById("shop-close-btn");
 
 const finalScoreEl = document.getElementById("final-score");
 const bestScoreEl  = document.getElementById("best-score");
@@ -881,6 +938,134 @@ function loadBest() {
   }
 }
 
+function updateCoinDisplays() {
+  const balance = String(playerCoins);
+  if (coinBalanceStartEl) coinBalanceStartEl.textContent = balance;
+  if (coinBalanceOverEl) coinBalanceOverEl.textContent = balance;
+  if (shopCoinBalanceEl) shopCoinBalanceEl.textContent = balance;
+  if (coinsEarnedEl) coinsEarnedEl.textContent = String(game.coinsEarned);
+}
+
+function persistShopState() {
+  try {
+    localStorage.setItem(COIN_STORAGE_KEY, String(playerCoins));
+    localStorage.setItem(OWNED_THEMES_STORAGE_KEY, JSON.stringify([...ownedThemes]));
+    localStorage.setItem(EQUIPPED_THEME_STORAGE_KEY, equippedThemeId);
+  } catch (e) {
+    // تستمر الجولة بالعمل حتى إذا كان التخزين المحلي غير متاح.
+  }
+}
+
+function applyTheme(themeId, persist = true) {
+  const theme = THEME_CATALOG.find((item) => item.id === themeId);
+  if (!theme || !ownedThemes.has(theme.id)) return false;
+
+  equippedThemeId = theme.id;
+  ACTIVE_THEME = theme;
+  COLORS.splice(0, COLORS.length, ...theme.colors.map((color) => ({ ...color })));
+  document.documentElement.style.setProperty("--theme-accent", theme.accent);
+  document.documentElement.style.setProperty("--theme-secondary", theme.secondary);
+
+  if (W > 0 && H > 0) resize();
+  if (persist) persistShopState();
+  return true;
+}
+
+function loadShopState() {
+  try {
+    const savedCoins = parseInt(localStorage.getItem(COIN_STORAGE_KEY) || "0", 10);
+    playerCoins = Number.isFinite(savedCoins) ? Math.max(0, savedCoins) : 0;
+  } catch (e) {
+    playerCoins = 0;
+  }
+
+  ownedThemes = new Set(["classic"]);
+  try {
+    const savedOwned = JSON.parse(localStorage.getItem(OWNED_THEMES_STORAGE_KEY) || "[]");
+    const validIds = new Set(THEME_CATALOG.map((theme) => theme.id));
+    if (Array.isArray(savedOwned)) {
+      for (const id of savedOwned) if (validIds.has(id)) ownedThemes.add(id);
+    }
+  } catch (e) {
+    // تجاهل بيانات المظاهر التالفة واحتفظ بالمظهر المجاني.
+  }
+
+  let savedEquipped = "classic";
+  try { savedEquipped = localStorage.getItem(EQUIPPED_THEME_STORAGE_KEY) || "classic"; } catch (e) {}
+  equippedThemeId = ownedThemes.has(savedEquipped) ? savedEquipped : "classic";
+  applyTheme(equippedThemeId, false);
+  updateCoinDisplays();
+}
+
+function awardCoins(amount) {
+  const reward = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!reward) return;
+  playerCoins += reward;
+  game.coinsEarned += reward;
+  persistShopState();
+  updateCoinDisplays();
+}
+
+function renderShop() {
+  if (!shopItemsEl) return;
+  shopItemsEl.innerHTML = THEME_CATALOG.map((theme) => {
+    const owned = ownedThemes.has(theme.id);
+    const equipped = equippedThemeId === theme.id;
+    const insufficient = !owned && playerCoins < theme.price;
+    const actionLabel = equipped ? "المظهر الحالي" : owned ? "تجهيز" : "شراء";
+    const priceLabel = theme.price === 0 ? "مجاني" : theme.price + " عملة";
+    const swatches = theme.colors.map((color) => '<span style="--swatch:' + color.main + '"></span>').join("");
+    const affordHint = insufficient
+      ? '<small class="shop-affordability">ينقصك ' + (theme.price - playerCoins) + ' عملة</small>'
+      : "";
+
+    return '<article class="shop-item-card' + (equipped ? ' is-equipped' : '') + '">' +
+      '<div class="theme-swatches" aria-hidden="true">' + swatches + '</div>' +
+      '<div class="shop-card-content">' +
+        '<div class="shop-card-heading"><div><h3>' + theme.name + '</h3><p>' + theme.subtitle + '</p></div>' +
+        '<span class="shop-price">' + priceLabel + '</span></div>' +
+        '<p class="shop-card-description">' + theme.description + '</p>' +
+        '<button class="shop-action' + (equipped ? ' is-equipped' : '') + '" type="button" data-theme-action="' + theme.id + '"' +
+          ((equipped || insufficient) ? ' disabled' : '') + '>' + actionLabel + '</button>' + affordHint +
+      '</div>' +
+    '</article>';
+  }).join("");
+}
+
+function handleThemeAction(themeId) {
+  const theme = THEME_CATALOG.find((item) => item.id === themeId);
+  if (!theme) return;
+
+  if (!ownedThemes.has(themeId)) {
+    const remaining = theme.price - playerCoins;
+    if (remaining > 0) {
+      shopStatusEl.textContent = "تحتاج إلى " + remaining + " عملة إضافية لشراء هذا المظهر.";
+      return;
+    }
+    playerCoins -= theme.price;
+    ownedThemes.add(themeId);
+  }
+
+  applyTheme(themeId, true);
+  updateCoinDisplays();
+  shopStatusEl.textContent = "تم تجهيز " + theme.name + " بنجاح.";
+  renderShop();
+}
+
+function openShop() {
+  shopStatusEl.textContent = "";
+  renderShop();
+  shopScreen.classList.remove("hidden");
+  shopScreen.setAttribute("aria-hidden", "false");
+  shopCloseBtn.focus();
+}
+
+function closeShop() {
+  shopScreen.classList.add("hidden");
+  shopScreen.setAttribute("aria-hidden", "true");
+  shopOpenBtn.focus();
+}
+
 /** بدء / إعادة اللعبة */
 function startGame() {
   Sound.init();
@@ -894,6 +1079,7 @@ function startGame() {
   game.maxCombo     = 0;
   game.elapsed      = 0;
   game.freezeTimer  = 0;
+  game.coinsEarned  = 0;
   game.difficulty   = 1;
   game.fallSpeed    = 160;
   game.spawnInterval = 0.9;
@@ -922,6 +1108,7 @@ function startGame() {
   newRecordEl.classList.add("hidden");
 
   updateHUD();
+  updateCoinDisplays();
 }
 
 /** العودة إلى شاشة البداية مع مزامنة أعلى نتيجة من التخزين المحلي */
@@ -935,6 +1122,7 @@ function returnToHome() {
   bestEl.textContent = game.best;
   bestScoreEl.textContent = game.best;
   updateHUD();
+  updateCoinDisplays();
 }
 
 /** مشاركة النتيجة باستخدام نافذة المشاركة أو WhatsApp كخيار احتياطي */
@@ -979,6 +1167,8 @@ function endGame() {
   finalScoreEl.textContent = game.score;
   bestScoreEl.textContent  = game.best;
   maxComboEl.textContent   = game.maxCombo;
+  coinsEarnedEl.textContent = game.coinsEarned;
+  coinBalanceOverEl.textContent = playerCoins;
 
   if (isNewRecord) newRecordEl.classList.remove("hidden");
 
@@ -997,9 +1187,18 @@ startBtn.addEventListener("click", startGame);
 restartBtn.addEventListener("click", startGame);
 homeBtn.addEventListener("click", returnToHome);
 shareBtn.addEventListener("click", shareScore);
+shopOpenBtn.addEventListener("click", openShop);
+shopCloseBtn.addEventListener("click", closeShop);
+shopScreen.addEventListener("click", (event) => {
+  if (event.target === shopScreen) closeShop();
+});
+shopItemsEl.addEventListener("click", (event) => {
+  const button = event.target.closest(".shop-action");
+  if (button && !button.disabled) handleThemeAction(button.dataset.themeAction);
+});
 
 // منع تمرير الصفحة عند اللمس على الأزرار
-[startBtn, restartBtn, homeBtn, shareBtn].forEach(btn => {
+[startBtn, restartBtn, homeBtn, shareBtn, shopOpenBtn, shopCloseBtn].forEach(btn => {
   btn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
 });
 
@@ -1013,6 +1212,7 @@ if ("serviceWorker" in navigator) {
 
 // تهيئة أولية
 loadBest();
+loadShopState();
 resize();
 player.x = W / 2;
 bestStartEl.textContent = game.best;

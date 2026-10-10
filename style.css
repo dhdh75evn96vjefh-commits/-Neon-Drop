@@ -390,3 +390,199 @@ canvas {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* متغيرات ألوان المظهر النشط */
+:root {
+  --theme-accent: #00e5ff;
+  --theme-secondary: #ff2fd0;
+}
+
+/* رصيد العملات وزر المتجر في الشاشة الرئيسية */
+.home-store-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(250px, 86vw);
+  margin-top: -8px;
+}
+
+.coin-wallet-pill,
+.shop-wallet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 196, 0, 0.3);
+  border-radius: 999px;
+  background: rgba(18, 21, 39, 0.86);
+  color: #ffe7a1;
+  box-shadow: 0 0 18px rgba(255, 196, 0, 0.09), inset 0 0 14px rgba(255, 196, 0, 0.05);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.coin-wallet-pill strong,
+.shop-wallet strong { color: #fff2c5; font-size: 17px; }
+
+.coin-token {
+  color: #ffc400;
+  font-size: 20px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(255, 196, 0, 0.7);
+}
+
+.btn-shop {
+  min-width: 92px;
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid rgba(0, 229, 255, 0.48);
+  border-radius: 999px;
+  color: #ecf9ff;
+  background: linear-gradient(135deg, rgba(13, 24, 52, 0.96), rgba(42, 20, 67, 0.96));
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.18);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.btn-shop:hover { transform: translateY(-2px); box-shadow: 0 0 24px rgba(0, 229, 255, 0.35); }
+.btn-shop:active { transform: scale(.97); }
+
+/* ملخص العملات في نهاية الجولة */
+.coin-summary {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 460px;
+}
+
+.coin-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 150px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 196, 0, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 196, 0, 0.055);
+}
+
+.coin-summary span { color: #c6b98f; font-size: 11px; font-weight: 700; }
+.coin-summary strong { color: #ffe082; font-size: 20px; text-shadow: 0 0 12px rgba(255, 196, 0, 0.38); }
+
+/* نافذة متجر المظاهر */
+.shop-overlay {
+  z-index: 20;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: max(22px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  background: radial-gradient(ellipse at 50% 12%, rgba(27, 35, 82, 0.98), rgba(7, 9, 23, 0.98) 68%);
+}
+
+.shop-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(560px, 100%);
+  text-align: right;
+}
+
+.shop-heading h2 { color: #f2f6ff; font-size: clamp(24px, 7vw, 34px); font-weight: 900; text-shadow: 0 0 18px var(--theme-accent); }
+.shop-heading p { margin-top: 4px; color: #9aa9cb; font-size: 12px; }
+.shop-wallet { flex-shrink: 0; }
+
+.shop-status {
+  min-height: 18px;
+  width: min(560px, 100%);
+  color: #ffe082;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 100%);
+  max-height: 54dvh;
+  overflow-y: auto;
+  padding: 2px 4px 8px;
+  overscroll-behavior: contain;
+}
+
+.shop-item-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  border: 1px solid rgba(126, 150, 203, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(19, 26, 51, 0.94), rgba(17, 13, 36, 0.94));
+  text-align: right;
+}
+
+.shop-item-card.is-equipped {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(255, 255, 255, 0.025);
+}
+
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  width: 56px;
+  height: 56px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(3, 5, 14, 0.72);
+}
+
+.theme-swatches span { border-radius: 50%; background: var(--swatch); box-shadow: 0 0 10px var(--swatch); }
+.shop-card-content { min-width: 0; }
+.shop-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-card-heading h3 { color: #f5f7ff; font-size: 15px; font-weight: 900; }
+.shop-card-heading p { margin-top: 2px; color: #8898bd; font-size: 11px; }
+.shop-price { flex-shrink: 0; color: #ffe082; font-size: 12px; font-weight: 900; }
+.shop-card-description { margin: 6px 0 9px; color: #a3afca; font-size: 11px; line-height: 1.4; }
+
+.shop-action {
+  min-width: 104px;
+  padding: 8px 13px;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  border-radius: 999px;
+  color: #f6fbff;
+  background: rgba(0, 229, 255, 0.09);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.shop-action:hover:not(:disabled) { background: rgba(0, 229, 255, 0.2); }
+.shop-action.is-equipped { border-color: rgba(255, 196, 0, 0.35); color: #ffe082; }
+.shop-action:disabled { opacity: .58; cursor: not-allowed; }
+.shop-affordability { margin-right: 8px; color: #ff9ab0; font-size: 10px; }
+.shop-close-btn { flex-shrink: 0; }
+
+@media (max-height: 560px) {
+  .shop-overlay { gap: 8px; padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+  .shop-items { max-height: 46dvh; }
+}
+
+@media (max-width: 360px) {
+  .shop-item-card { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .theme-swatches { width: 48px; height: 48px; }
+  .shop-card-heading h3 { font-size: 13px; }
+}
