@@ -76,6 +76,14 @@ const THEME_CATALOG = [
   }
 ];
 
+const SCORE_REWARD_MILESTONES = [
+  { score: 500, points: 10, attempts: 1 },
+  { score: 800, points: 20, attempts: 1 },
+  { score: 1200, points: 30, attempts: 1 },
+  { score: 1700, points: 50, attempts: 1 },
+  { score: 2500, points: 100, attempts: 1 }
+];
+
 const DAILY_EVENTS = [
   {
     id: "double-coins",
@@ -285,6 +293,7 @@ const game = {
   coinsEarned: 0,
   speedBoostActive: false,
   masterModeActive: false,
+  scoreRewardIndex: 0,
   dailyEventId: "double-coins",
 
   difficulty: 1,
@@ -681,6 +690,20 @@ function updatePlayer(dt) {
 
 /** تفعيل عتبات التقدم عند تجاوز النقاط المطلوبة */
 function updateMilestones() {
+  while (game.scoreRewardIndex < SCORE_REWARD_MILESTONES.length) {
+    const reward = SCORE_REWARD_MILESTONES[game.scoreRewardIndex];
+    if (game.score < reward.score) break;
+
+    game.scoreRewardIndex++;
+    game.score += reward.points;
+    game.lives += reward.attempts;
+    burst(player.x, player.y - 20 * GAME_SCALE, game.targetColor, 48, 420);
+    addFloater(W / 2, H * 0.36, `+${reward.points} نقطة  ·  +${reward.attempts} محاولة`, "#ffe082");
+    showMilestoneBanner(`وصلت إلى ${reward.score}! +${reward.points} نقطة و+${reward.attempts} محاولة`);
+    vibrate([45, 35, 85]);
+    Sound.unlock();
+  }
+
   if (game.score > 1000 && !game.speedBoostActive) {
     game.speedBoostActive = true;
     for (const orb of game.orbs) if (!orb.destroyed) orb.vy *= 1.15;
@@ -1210,9 +1233,10 @@ function updateHUD() {
 /** رسم قلوب الحياة */
 function renderLives() {
   let html = "";
-  const total = 3;
+  const total = Math.max(3, game.lives);
   for (let i = 0; i < total; i++) {
-    html += '<span class="life' + (i < game.lives ? "" : " off") + '"></span>';
+    const extra = i >= 3 ? " extra" : "";
+    html += '<span class="life' + extra + (i < game.lives ? "" : " off") + '"></span>';
   }
   livesEl.innerHTML = html;
 }
@@ -1532,6 +1556,7 @@ function startGame() {
   game.coinsEarned  = 0;
   game.speedBoostActive = false;
   game.masterModeActive = false;
+  game.scoreRewardIndex = 0;
   game.difficulty   = 1;
   game.fallSpeed    = 160;
   game.spawnInterval = 0.9;

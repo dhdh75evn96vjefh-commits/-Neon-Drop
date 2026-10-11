@@ -117,8 +117,10 @@ canvas {
 /* نقاط الحياة */
 .lives {
   display: flex;
+  flex-wrap: wrap;
   gap: clamp(5px, 1.8vw, 7px);
   justify-content: flex-end;
+  max-width: min(150px, 40vw);
   margin-top: 8px;
 }
 
@@ -135,6 +137,17 @@ canvas {
   background: #232a42;
   box-shadow: none;
   transform: scale(0.75);
+}
+
+.life.extra:not(.off) {
+  background: #ffe082;
+  box-shadow: 0 0 12px #ffc400, 0 0 4px #fff inset;
+  animation: extra-life-pulse 1.25s ease-in-out infinite alternate;
+}
+
+@keyframes extra-life-pulse {
+  from { filter: brightness(0.88); transform: scale(0.95); }
+  to { filter: brightness(1.25); transform: scale(1.12); }
 }
 
 /* ============================================================
