@@ -33,6 +33,46 @@ const THEME_CATALOG = [
       { main: "#c000d4", dark: "#5e0069" }
     ],
     background: ["#08030b", "#1a0411", "#21081b"], accent: "#ff315d", secondary: "#c000d4"
+  },
+  {
+    id: "aurora", name: "Aurora Pulse", subtitle: "نبض الشفق القطبي", description: "تدرجات تركوازية وبنفسجية مستوحاة من أضواء الشفق.", price: 45,
+    colors: [
+      { main: "#62ffd5", dark: "#126f68" },
+      { main: "#9b7bff", dark: "#49348a" },
+      { main: "#c6fff2", dark: "#568e88" },
+      { main: "#ff77da", dark: "#913878" }
+    ],
+    background: ["#041016", "#0a1930", "#170e30"], accent: "#62ffd5", secondary: "#9b7bff"
+  },
+  {
+    id: "matrix-green", name: "Matrix Green", subtitle: "المصفوفة الخضراء", description: "أخضر رقمي ساطع على خلفية ليلية عميقة.", price: 55,
+    colors: [
+      { main: "#75ff4f", dark: "#287a1d" },
+      { main: "#00e6a8", dark: "#006b52" },
+      { main: "#d0ff65", dark: "#71842b" },
+      { main: "#00ffc8", dark: "#007a66" }
+    ],
+    background: ["#031006", "#071b12", "#0c261b"], accent: "#75ff4f", secondary: "#00e6a8"
+  },
+  {
+    id: "ultraviolet", name: "Ultraviolet", subtitle: "أشعة بنفسجية", description: "بنفسجي عميق ووردي كهربائي بطابع فضائي.", price: 70,
+    colors: [
+      { main: "#b36bff", dark: "#57308c" },
+      { main: "#ff62dc", dark: "#8e3478" },
+      { main: "#8a8dff", dark: "#414780" },
+      { main: "#eea6ff", dark: "#804f91" }
+    ],
+    background: ["#0b0618", "#160a2b", "#250d35"], accent: "#b36bff", secondary: "#ff62dc"
+  },
+  {
+    id: "ice-storm", name: "Ice Storm", subtitle: "عاصفة جليدية", description: "ألوان جليدية باردة مع ومضات زرقاء لامعة.", price: 85,
+    colors: [
+      { main: "#8cecff", dark: "#34768f" },
+      { main: "#5da6ff", dark: "#315b9a" },
+      { main: "#e2fbff", dark: "#7398a0" },
+      { main: "#75fff1", dark: "#318f89" }
+    ],
+    background: ["#04101b", "#081b31", "#0b2940"], accent: "#8cecff", secondary: "#5da6ff"
   }
 ];
 
