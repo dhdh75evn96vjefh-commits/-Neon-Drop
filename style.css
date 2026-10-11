@@ -31,14 +31,13 @@ html, body {
   overflow: hidden;
 }
 
-@media (min-width: 700px) and (hover: hover) and (pointer: fine),
-       (min-width: 700px) and (min-height: 480px) {
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
   #game-wrap {
     inset: auto;
     top: 50%;
     left: 50%;
-    width: min(500px, calc(56.25vh - 27px), calc(100vw - 48px));
-    width: min(500px, calc(56.25dvh - 27px), calc(100vw - 48px));
+    width: min(450px, calc(56.25vh - 27px), calc(100vw - 48px));
+    width: min(450px, calc(56.25dvh - 27px), calc(100vw - 48px));
     height: auto;
     max-height: calc(100vh - 48px);
     max-height: calc(100dvh - 48px);
